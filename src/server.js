@@ -6,6 +6,7 @@ import {requestId} from './api/middleware/request-id.js';
 import {rateLimit} from './api/middleware/rate-limit.js';
 import {auth,workerAuth} from './api/middleware/auth.js';
 import {health} from './api/routes/health.js';
+import {internetStatus} from './providers/internet-status.js';
 import * as channels from './api/routes/channels.js';
 import * as projects from './api/routes/projects.js';
 import * as jobs from './api/routes/jobs.js';
@@ -31,6 +32,10 @@ const server=http.createServer(async(req,res)=>{
     const u=new URL(req.url,`http://${req.headers.host||'localhost'}`);
     if(u.pathname==='/health'&&req.method==='GET')return health(req,res);
     if(u.pathname==='/api/realtime-config'&&req.method==='GET')return send(res,200,{success:true,url:e.SUPABASE_URL,anon_key:e.SUPABASE_ANON_KEY});
+    if(u.pathname==='/api/internet-status'&&req.method==='GET'){
+      const result=await internetStatus();
+      return send(res,result.success?200:503,result);
+    }
 
     if(req.method==='GET'&&(u.pathname==='/'||u.pathname.startsWith('/css/')||u.pathname.startsWith('/js/'))){
       const p=u.pathname==='/'?'/index.html':u.pathname;
