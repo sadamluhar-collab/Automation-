@@ -9,8 +9,12 @@ const redirect=(res,url)=>{res.statusCode=302;res.setHeader('location',url);res.
 const appUrl=()=>env().APP_BASE_URL.replace(/\/$/,'');
 
 export function connect(req,res){
-  const state=createState(req.user.id);
-  redirect(res,authorizationUrl(state));
+  try{
+    const state=createState(req.user.id);
+    send(res,200,{success:true,authorization_url:authorizationUrl(state)});
+  }catch(e){
+    send(res,500,{success:false,error:{code:'YOUTUBE_OAUTH_CONFIG',message:e.message||'YouTube OAuth configuration failed'}});
+  }
 }
 
 export async function callback(req,res){
