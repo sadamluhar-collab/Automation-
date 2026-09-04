@@ -1,0 +1,1 @@
+import {dependencies,downstream} from '../../pipeline/pipeline.dependencies.js';export function inspect(req,res){res.json({success:true,step:req.params.step,dependencies:dependencies(req.params.step),downstream:downstream(req.params.step)})}

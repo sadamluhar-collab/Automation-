@@ -1,0 +1,1 @@
+export const EVENTS=Object.freeze({JOB_PROGRESS:'job.progress',JOB_STATUS:'job.status',WORKER_STATUS:'worker.status',CHANNEL_STATUS:'channel.status',FAULT:'fault',PIPELINE:'pipeline',UPLOAD:'upload',SCHEDULER:'scheduler'});

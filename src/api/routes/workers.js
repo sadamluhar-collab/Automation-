@@ -1,0 +1,1 @@
+import {query} from '../../database/supabase.js';export async function list(_req,res){res.json({success:true,data:await query('workers',{params:'?select=id,status,last_heartbeat,current_job_id,updated_at'} )})}

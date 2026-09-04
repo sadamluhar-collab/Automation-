@@ -1,0 +1,3 @@
+import {verifyAccessToken} from '../../auth/auth.service.js';
+export async function auth(req,res,next){try{const h=req.headers.authorization||'';req.user=await verifyAccessToken(h.startsWith('Bearer ')?h.slice(7):null);next()}catch(e){res.status(401).json({success:false,error:{code:'UNAUTHENTICATED',message:'Authentication required'}})}}
+export function workerAuth(req,res,next){const expected=process.env.WORKER_SECRET;if(!expected||req.headers['x-worker-secret']!==expected)return res.status(401).json({success:false,error:{code:'WORKER_UNAUTHORIZED',message:'Worker authentication failed'}});next()}

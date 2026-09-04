@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {idempotencyKey} from '../../src/utils/idempotency.js';test('stable key',()=>assert.equal(idempotencyKey(['job',1,'clip',2]),'job:1:clip:2'));

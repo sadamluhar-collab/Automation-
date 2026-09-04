@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {dependencies,downstream} from '../../src/pipeline/pipeline.dependencies.js';test('dependencies',()=>assert.deepEqual(dependencies('clips'),['references']));test('downstream',()=>assert.ok(downstream('script').includes('clips')));

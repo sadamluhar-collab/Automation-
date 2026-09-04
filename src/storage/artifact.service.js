@@ -1,0 +1,1 @@
+import {createHash} from 'node:crypto';import {artifacts} from '../database/repositories/artifact.repository.js';export async function recordArtifact(x,bytes){return artifacts.create({...x,checksum:createHash('sha256').update(bytes).digest('hex'),size:bytes.length})}

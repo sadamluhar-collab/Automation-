@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {CircuitBreaker} from '../../src/recovery/circuit-breaker.js';test('opens after threshold',()=>{const c=new CircuitBreaker({threshold:2});c.failure();c.failure();assert.equal(c.allow(),false)});

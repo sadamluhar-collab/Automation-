@@ -1,0 +1,1 @@
+const providers=new Map();export const register=(type,name,impl)=>providers.set(`${type}:${name}`,impl);export const get=(type,name)=>providers.get(`${type}:${name}`);export const list=()=>[...providers.keys()];

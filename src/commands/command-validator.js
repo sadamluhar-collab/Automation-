@@ -1,0 +1,1 @@
+const allowed=new Set(['START','STOP','PAUSE','RESUME','RESTART','RETRY','SKIP','REGENERATE','START_NEXT_VIDEO','RESEARCH_AGAIN','RETRY_FAILED_CLIPS','REGENERATE_SCENE','STOP_AFTER_QC','RESYNC_YOUTUBE']);export function validateCommand(c){if(!allowed.has(c))throw new Error('Unsupported command');return true}

@@ -1,0 +1,1 @@
+import {api} from './api.js';const h=document.querySelector('#health');api('/health').then(x=>{h.textContent=x.success?'SYSTEM HEALTHY':'DATA UNAVAILABLE'}).catch(()=>h.textContent='DATA UNAVAILABLE');

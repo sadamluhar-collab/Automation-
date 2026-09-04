@@ -1,0 +1,1 @@
+import {analytics} from '../../analytics/analytics.service.js';export async function list(req,res){if(!req.query.channel_id)return res.status(400).json({success:false,error:{code:'VALIDATION',message:'channel_id required'}});res.json({success:true,data:await analytics(req.query.channel_id)})}

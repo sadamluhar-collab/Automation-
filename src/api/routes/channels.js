@@ -1,0 +1,1 @@
+import {channels} from '../../database/repositories/channel.repository.js';export function routes(req,res){channels.list(req.user.id).then(data=>res.json({success:true,data})).catch(e=>res.status(500).json({success:false,error:{code:'DATABASE',message:e.message}}))}

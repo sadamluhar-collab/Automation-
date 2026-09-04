@@ -1,0 +1,1 @@
+export function requireRole(...roles){return(req,res,next)=>{const role=req.user?.app_metadata?.role||req.user?.user_metadata?.role||'user';if(!roles.includes(role))return res.status(403).json({success:false,error:{code:'FORBIDDEN',message:'Insufficient permissions'}});next()}}

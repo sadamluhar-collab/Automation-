@@ -1,0 +1,1 @@
+import {stat} from 'node:fs/promises';export async function run(ctx){const p=ctx.input?.path;if(!p)throw new Error('QC requires output path');const s=await stat(p);if(s.size<1024)throw Object.assign(new Error('Artifact is unexpectedly small'),{code:'QC_FAILED'});return {ok:true,size:s.size}}

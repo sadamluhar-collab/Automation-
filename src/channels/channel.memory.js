@@ -1,0 +1,1 @@
+import {query} from '../database/supabase.js';export const getMemory=(channel)=>query('channel_memory',{params:`?channel_id=eq.${encodeURIComponent(channel)}&select=*`}).then(x=>x[0]||null);export const saveMemory=(x)=>query('channel_memory',{method:'PATCH',params:`?channel_id=eq.${encodeURIComponent(x.channel_id)}`,body:x});

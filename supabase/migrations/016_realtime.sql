@@ -1,0 +1,1 @@
+-- Realtime publication configuration is managed by Supabase. Tables used by the UI are intentionally explicit.

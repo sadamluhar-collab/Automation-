@@ -1,0 +1,1 @@
+import {recoverWorkers} from '../workers/recovery.js';export async function autoRepair(fault){if(fault.type==='WORKER'||fault.type==='QUEUE')return recoverWorkers();return {action:'manual_intervention_required'}}

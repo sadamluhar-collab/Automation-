@@ -1,0 +1,1 @@
+import {readdir,readFile} from 'node:fs/promises';import {join} from 'node:path';const required=['src/server.js','src/pipeline/pipeline.engine.js','src/queue/queue.service.js','supabase/migrations/001_extensions.sql'];for(const f of required){await readFile(f);console.log(`OK ${f}`)}console.log('Production structure verification passed');

@@ -1,0 +1,2 @@
+import {registry} from './pipeline.registry.js';import {dependencies} from './pipeline.dependencies.js';import {validateStep} from './pipeline.validation.js';
+export async function executeStep(step,ctx){validateStep(step);for(const d of dependencies(step))if(ctx.state?.[d]?.status!=='completed')throw Object.assign(new Error(`Dependency ${d} not completed`),{code:'PIPELINE_DEPENDENCY'});const mod=registry[step];if(!mod?.run)throw new Error(`Step ${step} is not executable`);return mod.run(ctx)}

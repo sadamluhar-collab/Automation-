@@ -1,0 +1,1 @@
+export function health(_req,res){const configured=Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY);res.json({success:true,status:'ok',services:{api:'ok',database:configured?'configured':'unconfigured',queue:'postgres',worker:'disposable',realtime:'supabase',scheduler:'postgres'}})}

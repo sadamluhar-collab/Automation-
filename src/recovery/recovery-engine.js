@@ -1,0 +1,1 @@
+import {classify} from './fault-classifier.js';import {autoRepair} from './auto-repair.js';export async function recover(error,context={}){const type=classify(error);return {type,action:await autoRepair({type,error_message:error.message,...context})}}

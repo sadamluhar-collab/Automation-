@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {classify} from '../../src/recovery/fault-classifier.js';test('auth classification',()=>assert.equal(classify(Object.assign(new Error('token expired'),{code:'AUTH'})),'AUTH'));test('network classification',()=>assert.equal(classify(new Error('network timeout')),'NETWORK'));

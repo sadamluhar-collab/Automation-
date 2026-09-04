@@ -1,0 +1,1 @@
+-- No fake production data. Add test fixtures only in an isolated development database.

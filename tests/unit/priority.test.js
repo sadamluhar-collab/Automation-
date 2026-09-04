@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {priority} from '../../src/queue/queue.priority.js';test('priority order',()=>assert.deepEqual([priority({deadline:true}),priority({scheduled:true}),priority({retry:true}),priority({})],[1,2,3,4]));

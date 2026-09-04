@@ -1,0 +1,1 @@
+import {query} from '../database/supabase.js';export async function createChannel(input){const rows=await query('channels',{method:'POST',params:'?select=*',body:input,headers:{Prefer:'return=representation'}});return rows[0]}

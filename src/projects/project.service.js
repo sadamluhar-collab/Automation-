@@ -1,0 +1,1 @@
+import {query} from '../database/supabase.js';export async function createProject(input){const rows=await query('projects',{method:'POST',params:'?select=*',body:input,headers:{Prefer:'return=representation'}});return rows[0]}

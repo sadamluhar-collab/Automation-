@@ -1,0 +1,3 @@
+export const JOB_STATUS = Object.freeze({ QUEUED:'queued',RUNNING:'running',PAUSED:'paused',STOPPED:'stopped',FAILED:'failed',RETRYING:'retrying',COMPLETED:'completed',CANCELLED:'cancelled',SKIPPED:'skipped',STALE:'stale',DEAD:'dead_letter' });
+export const PIPELINE_STEPS = ['research','content-plan','script','scenes','references','clips','audio','music','assembly','thumbnail','qc','upload','analytics'];
+export const FAULT_TYPES = ['NETWORK','AUTH','DATABASE','QUEUE','WORKER','PROVIDER','STORAGE','MEDIA','PIPELINE','CONFIGURATION','QUOTA','RATE_LIMIT','VALIDATION','USER_ACTION','REALTIME','YOUTUBE','SCHEDULER','UNKNOWN'];

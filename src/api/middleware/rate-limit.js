@@ -1,0 +1,1 @@
+const buckets=new Map();export function rateLimit({windowMs=60000,max=120}={}){return(req,res,next)=>{const k=req.ip||'unknown',now=Date.now(),b=buckets.get(k);if(!b||now-b.start>windowMs){buckets.set(k,{start:now,count:1});return next()}if(++b.count>max)return res.status(429).json({success:false,error:{code:'RATE_LIMIT',message:'Too many requests'}});next()}}

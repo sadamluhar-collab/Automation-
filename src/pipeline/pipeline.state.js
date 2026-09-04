@@ -1,0 +1,1 @@
+import {PIPELINE_STEPS} from '../config/constants.js';export function nextStep(current){const i=PIPELINE_STEPS.indexOf(current);return i<0?PIPELINE_STEPS[0]:PIPELINE_STEPS[i+1]||null}export function initialState(){return Object.fromEntries(PIPELINE_STEPS.map(s=>[s,{status:'queued',progress:0}]))}

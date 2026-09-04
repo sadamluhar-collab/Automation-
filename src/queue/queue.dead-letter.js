@@ -1,0 +1,1 @@
+import {updateJob} from './queue.service.js';export const deadLetter=async(job,err)=>updateJob(job.id,{status:'dead_letter',error_code:err.code||'FAILED',error_message:err.message,completed_at:new Date().toISOString()});

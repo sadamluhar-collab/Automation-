@@ -1,0 +1,1 @@
+export const capabilities={llm:['generate'],research:['research'],image:['generate'],video:['generate'],audio:['generate','music'],youtube:['upload','analytics']};export const supports=(type,method)=>capabilities[type]?.includes(method)??false;

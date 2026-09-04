@@ -1,0 +1,1 @@
+export class CircuitBreaker{constructor({threshold=3,cooldownMs=60000}={}){this.threshold=threshold;this.cooldownMs=cooldownMs;this.failures=0;this.openedAt=0}allow(){return !this.openedAt||Date.now()-this.openedAt>this.cooldownMs}success(){this.failures=0;this.openedAt=0}failure(){if(++this.failures>=this.threshold)this.openedAt=Date.now()}}

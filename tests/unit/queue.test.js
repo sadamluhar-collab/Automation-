@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {priority} from '../../src/queue/queue.priority.js';test('priority deadline',()=>assert.equal(priority({deadline:true}),1));test('priority scheduled',()=>assert.equal(priority({scheduled:true}),2));test('priority retry',()=>assert.equal(priority({retry:true}),3));

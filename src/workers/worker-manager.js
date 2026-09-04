@@ -1,0 +1,1 @@
+import {workers} from '../database/repositories/worker.repository.js';export async function registerWorker(id){return workers.register({id,status:'connected',started_at:new Date().toISOString(),last_heartbeat:new Date().toISOString()})}export async function heartbeat(id){return workers.heartbeat(id,{status:'connected'})}

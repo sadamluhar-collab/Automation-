@@ -1,0 +1,1 @@
+import {projects} from '../../database/repositories/project.repository.js';export function routes(req,res){projects.list(req.params.channelId).then(data=>res.json({success:true,data})).catch(e=>res.status(500).json({success:false,error:{code:'DATABASE',message:'Database request failed'}}))}

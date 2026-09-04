@@ -1,0 +1,1 @@
+export const logger={info:(m,c={})=>console.log(JSON.stringify({level:'info',msg:m,...c,ts:new Date().toISOString()})),warn:(m,c={})=>console.warn(JSON.stringify({level:'warn',msg:m,...c,ts:new Date().toISOString()})),error:(m,c={})=>console.error(JSON.stringify({level:'error',msg:m,...c,ts:new Date().toISOString()}))};

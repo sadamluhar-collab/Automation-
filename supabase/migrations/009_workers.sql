@@ -1,0 +1,2 @@
+create table if not exists workers(id text primary key,status text not null default 'connected',current_job_id uuid references automation_jobs(id),last_heartbeat timestamptz,started_at timestamptz,updated_at timestamptz not null default now());
+create table if not exists worker_heartbeats(id uuid primary key default gen_random_uuid(),worker_id text not null references workers(id) on delete cascade,job_id uuid references automation_jobs(id),observed_at timestamptz not null default now());

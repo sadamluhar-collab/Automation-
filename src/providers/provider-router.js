@@ -1,0 +1,1 @@
+import {get} from './provider-registry.js';export async function route(type,preferred,fallback,...args){for(const name of [preferred,fallback]){if(!name)continue;const p=get(type,name);if(!p)continue;try{return await p(...args)}catch(e){if(name===fallback)throw e}}throw new Error(`No configured provider for ${type}`)}

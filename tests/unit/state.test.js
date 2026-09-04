@@ -1,0 +1,1 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {initialState,nextStep} from '../../src/pipeline/pipeline.state.js';test('initial state',()=>assert.equal(initialState().research.status,'queued'));test('next step',()=>assert.equal(nextStep('research'),'content-plan'));

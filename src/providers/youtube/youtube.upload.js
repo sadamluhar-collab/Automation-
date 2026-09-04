@@ -1,0 +1,1 @@
+import {youtubeRequest} from './youtube.api.js';export async function uploadVideo(token,metadata){if(!metadata?.snippet)throw new Error('YouTube snippet required');return youtubeRequest(token,'videos?part=snippet,status',{method:'POST',body:JSON.stringify({snippet:metadata.snippet,status:metadata.status||{privacyStatus:'private'}})})}
