@@ -42,6 +42,18 @@ export async function update(req,res){
   }
 }
 
+export async function remove(req,res){
+  try{
+    const id=String(req.params.id||'').trim();
+    const data=await projects.remove({userId:req.user.id,id});
+    send(res,200,{success:true,data});
+  }catch(error){
+    const status=error.message==='Project not found'?404:error.message==='Project has active jobs'?409:400;
+    console.error('projects.remove failed',error);
+    send(res,status,{success:false,error:{code:status===404?'NOT_FOUND':status===409?'ACTIVE_JOBS':'DELETE_FAILED',message:error.message}});
+  }
+}
+
 export async function run(req,res){
   try{
     const id=String(req.params.id||'').trim();
