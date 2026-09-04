@@ -51,6 +51,8 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==='/api/projects'&&req.method==='GET')return auth(req,res,()=>projects.list(req,res));
     if(u.pathname==='/api/projects'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>projects.create(req,res))}
     if(u.pathname.startsWith('/api/projects/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};projects.get(req,res)});
+    if(u.pathname.startsWith('/api/projects/')&&req.method==='PATCH'){req.body=await json(req);return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};projects.update(req,res)})}
+    if(u.pathname.startsWith('/api/projects/')&&u.pathname.endsWith('/run')&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};projects.run(req,res)})}
     if(u.pathname==='/api/jobs'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>jobs.create(req,res))}
     if(u.pathname.startsWith('/api/jobs/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};jobs.get(req,res)});
     if(u.pathname==='/api/commands'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>commands.execute(req,res))}
