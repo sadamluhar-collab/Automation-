@@ -1,0 +1,3 @@
+let activate=null;
+const openJobs=async()=>{if(!activate){const module=await import('./jobs.js?v=20260904-1');if(typeof module.activate!=='function')throw new Error('Jobs module is unavailable');activate=module.activate}activate()};
+document.querySelector('#nav button[data-section="jobs"]')?.addEventListener('click',()=>openJobs().catch(error=>{const content=document.querySelector('#content');if(content)content.innerHTML=`<div class="card"><h2>Jobs</h2><div class="empty error">Jobs module failed to load: ${String(error.message||error)}</div></div>`;console.error('Jobs module failed',error)}));
