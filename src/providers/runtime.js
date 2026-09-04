@@ -2,6 +2,7 @@ import {env} from '../config/env.js';
 import {createKeyPool} from './key-pool.js';
 import {researchProvider} from './research/provider.js';
 import {createVideoProvider} from './video/runtime.js';
+import {createAudioRuntimeProvider} from './audio/runtime.js';
 
 const ALIASES = {
   tavily:'tavily',openai:'openai',gpt:'openai',gemini:'gemini',google:'gemini',deepseek:'deepseek',groq:'groq',zai:'zai','z.ai':'zai',aihubmix:'aihubmix','ai hub mix':'aihubmix',openrouter:'openrouter',elevenlabs:'elevenlabs',sarvam:'sarvam',luma:'luma',runway:'runwayml',runwayml:'runwayml',fal:'fal',hf:'huggingface',huggingface:'huggingface'
@@ -77,6 +78,7 @@ export function createRuntimeProviders(overrides={}){
   const runtime={...overrides};
   if(!runtime.llm)runtime.llm=makeLLMProvider();
   if(!runtime.research){const research=makeResearchProvider();if(research)runtime.research=research;}
+  if(!runtime.audio)runtime.audio=createAudioRuntimeProvider();
   if(!runtime.video)runtime.video=createVideoProvider();
   return runtime;
 }
