@@ -1,0 +1,3 @@
+let activate=null;
+async function openAnalytics(){if(!activate){const module=await import('./analytics.js?v=20260904-1');if(typeof module.activate!=='function')throw new Error('Analytics module is unavailable');activate=module.activate}activate()}
+document.querySelector('#nav button[data-section="analytics"]')?.addEventListener('click',()=>openAnalytics().catch(error=>{const content=document.querySelector('#content');if(content)content.innerHTML=`<div class="card"><h2>Analytics</h2><div class="empty error">Analytics module failed to load: ${String(error.message||error)}</div></div>`;console.error('Analytics module failed',error)}));
