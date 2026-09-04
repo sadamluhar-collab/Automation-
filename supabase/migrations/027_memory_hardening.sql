@@ -1,0 +1,12 @@
+alter table channel_memory enable row level security;
+alter table channel_memory_versions enable row level security;
+drop policy if exists channel_memory_select on channel_memory;
+drop policy if exists channel_memory_insert on channel_memory;
+drop policy if exists channel_memory_update on channel_memory;
+drop policy if exists channel_memory_versions_select on channel_memory_versions;
+drop policy if exists channel_memory_versions_insert on channel_memory_versions;
+create policy channel_memory_select on channel_memory for select using (channel_id in (select id from channels where user_id=auth.uid()));
+create policy channel_memory_insert on channel_memory for insert with check (channel_id in (select id from channels where user_id=auth.uid()));
+create policy channel_memory_update on channel_memory for update using (channel_id in (select id from channels where user_id=auth.uid())) with check (channel_id in (select id from channels where user_id=auth.uid()));
+create policy channel_memory_versions_select on channel_memory_versions for select using (channel_id in (select id from channels where user_id=auth.uid()));
+create policy channel_memory_versions_insert on channel_memory_versions for insert with check (channel_id in (select id from channels where user_id=auth.uid()));
