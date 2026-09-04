@@ -1,1 +1,14 @@
-export function audioProvider({url,apiKey}){const call=async(input)=>{if(!url||!apiKey)throw Object.assign(new Error('Audio provider credentials missing'),{code:'CONFIGURATION'});const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},body:JSON.stringify(input)});if(!r.ok)throw new Error(`Audio provider HTTP ${r.status}`);return r.json()};return {generate:call,music:call}}
+import {createKeyPool} from '../key-pool.js';
+
+export function audioProvider({url, apiKey, apiKeys}) {
+  const pool = createKeyPool(apiKeys || apiKey);
+  const call = async input => {
+    if (!url || !pool.size) throw Object.assign(new Error('Audio provider credentials missing'), {code: 'CONFIGURATION'});
+    return pool.run(async key => {
+      const r = await fetch(url, {method: 'POST', headers: {Authorization: `Bearer ${key}`, 'Content-Type': 'application/json'}, body: JSON.stringify(input)});
+      if (!r.ok) throw Object.assign(new Error(`Audio provider HTTP ${r.status}`), {status: r.status, code: r.status === 429 ? 'RATE_LIMIT' : 'PROVIDER'});
+      return r.json();
+    });
+  };
+  return {generate: call, music: call};
+}
