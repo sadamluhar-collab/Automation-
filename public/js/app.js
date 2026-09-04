@@ -7,7 +7,6 @@ const content=document.querySelector('#content');
 const title=document.querySelector('#page-title');
 
 const tableModules={channels:['channels'],projects:['projects','project_versions'],pipeline:['pipeline_runs','pipeline_steps','scenes','scene_versions'],jobs:['automation_jobs','job_items'],recovery:['faults','recovery_attempts'],commands:['commands'],schedules:['schedules'],analytics:['analytics'],artifacts:['artifacts'],memory:['channel_memory','channel_memory_versions']};
-const sections=['overview',...Object.keys(tableModules)];
 
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const render=section=>{
@@ -28,11 +27,26 @@ document.querySelectorAll('#nav button').forEach(button=>button.addEventListener
   render(button.dataset.section);
 }));
 
-api('/health').then(x=>{
-  const ok=Boolean(x?.success);
-  health.textContent=ok?'API HEALTHY':'API UNAVAILABLE';
-  const metric=document.querySelector('#api-metric'); if(metric) metric.textContent=ok?'Healthy':'Unavailable';
-}).catch(()=>{health.textContent='API UNAVAILABLE';const metric=document.querySelector('#api-metric');if(metric)metric.textContent='Unavailable';});
+const checkApi=async()=>{
+  let lastError;
+  for(let attempt=0;attempt<4;attempt++){
+    try{
+      const x=await api('/health',{cache:'no-store'});
+      if(x?.success){
+        health.textContent='API HEALTHY';
+        const metric=document.querySelector('#api-metric');if(metric)metric.textContent='Healthy';
+        return;
+      }
+      lastError=new Error(x?.error?.message||'Health check failed');
+    }catch(error){lastError=error}
+    await new Promise(resolve=>setTimeout(resolve,Math.min(1500*(attempt+1),4500)));
+  }
+  health.textContent='API UNAVAILABLE';
+  const metric=document.querySelector('#api-metric');if(metric)metric.textContent='Unavailable';
+  console.error('API health check failed',lastError);
+};
+
+checkApi();
 
 subscribeTables({tables:[...new Set(Object.values(tableModules).flat())],onStatus:status=>{
   realtime.textContent=`REALTIME ${status.toUpperCase()}`;
