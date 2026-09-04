@@ -10,24 +10,24 @@ export function createKeyPool(apiKeys, {cooldownMs = 30000} = {}) {
   const blockedUntil = new Map();
   let cursor = 0;
 
+  // Keep the current healthy key active. Other keys remain standby and are
+  // only selected after the active key fails or is temporarily blocked.
   function nextKey() {
     if (!keys.length) return null;
     const now = Date.now();
     for (let i = 0; i < keys.length; i += 1) {
       const index = (cursor + i) % keys.length;
       const key = keys[index];
-      if ((blockedUntil.get(key) || 0) <= now) {
-        cursor = (index + 1) % keys.length;
-        return key;
-      }
+      if ((blockedUntil.get(key) || 0) <= now) return key;
     }
-    const key = keys[cursor % keys.length];
-    cursor = (cursor + 1) % keys.length;
-    return key;
+    return keys[cursor % keys.length];
   }
 
   function penalize(key, status) {
-    if (key && RETRYABLE_STATUS.has(status)) blockedUntil.set(key, Date.now() + cooldownMs);
+    if (!key || !RETRYABLE_STATUS.has(status)) return;
+    blockedUntil.set(key, Date.now() + cooldownMs);
+    const index = keys.indexOf(key);
+    if (index >= 0 && index === cursor) cursor = (index + 1) % keys.length;
   }
 
   async function run(request) {
@@ -46,6 +46,9 @@ export function createKeyPool(apiKeys, {cooldownMs = 30000} = {}) {
           if (!RETRYABLE_STATUS.has(response.status)) throw lastError;
           continue;
         }
+        // Successful key becomes the active key for subsequent requests.
+        const index = keys.indexOf(key);
+        if (index >= 0) cursor = index;
         return response;
       } catch (error) {
         const status = error?.status || error?.statusCode;
@@ -68,3 +71,5 @@ export function envKeyPool(env, baseName, max = 7) {
   }
   return keys;
 }
+
+export const RETRYABLE_PROVIDER_STATUS = RETRYABLE_STATUS;
