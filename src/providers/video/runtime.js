@@ -1,0 +1,66 @@
+import {env} from '../../config/env.js';
+import {createKeyPool} from '../key-pool.js';
+
+const RETRYABLE = new Set([401,403,408,409,425,429,500,502,503,504]);
+
+function error(message, status){
+  return Object.assign(new Error(message), {status, code: status === 429 ? 'RATE_LIMIT' : 'PROVIDER'});
+}
+
+async function postJson(url, headers, body){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+  try {
+    const r = await fetch(url, {method:'POST', headers, body:JSON.stringify(body), signal:controller.signal});
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw error(`Video provider HTTP ${r.status}`, r.status);
+    return data;
+  } catch(e){
+    if(e?.name === 'AbortError') throw Object.assign(new Error('Video provider request timed out'), {code:'TIMEOUT',retryable:true});
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+
+function promptFor(input){
+  return String(input?.prompt || input?.text || input?.description || input?.scene || input?.title || JSON.stringify(input)).slice(0,8000);
+}
+
+function lumaProvider(keys, url, model){
+  const pool=createKeyPool(keys);
+  return {name:'luma', async generate(input){
+    if(!pool.size) throw Object.assign(new Error('Luma credentials missing'),{code:'CONFIGURATION'});
+    return pool.run(key => postJson(url,
+      {'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+      {prompt:promptFor(input), model, aspect_ratio:input?.aspect_ratio || '9:16', duration:String(input?.duration || 5)}));
+  }};
+}
+
+function falProvider(keys, url, model){
+  const pool=createKeyPool(keys);
+  return {name:'fal', async generate(input){
+    if(!pool.size) throw Object.assign(new Error('FAL credentials missing'),{code:'CONFIGURATION'});
+    return pool.run(key => postJson(url,
+      {'Authorization':`Key ${key}`,'Content-Type':'application/json'},
+      {...input, prompt:promptFor(input), model:model || undefined}));
+  }};
+}
+
+export function createVideoProvider(){
+  const e=env();
+  const luma=e.PROVIDER_KEYS?.luma || [];
+  const fal=e.PROVIDER_KEYS?.fal || [];
+  const lumaUrl=e.LUMA_API_URL || 'https://api.lumalabs.ai/dream-machine/v1/generations';
+  const falModel=e.FAL_VIDEO_MODEL || '';
+  const falUrl=e.FAL_VIDEO_API_URL || (falModel ? `https://fal.run/${falModel}` : '');
+  const providers=[];
+  if(luma.length) providers.push(lumaProvider(luma,lumaUrl,e.LUMA_VIDEO_MODEL || 'ray-2'));
+  if(fal.length && falUrl) providers.push(falProvider(fal,falUrl,falModel));
+  return {async generate(input){
+    let last;
+    for(const provider of providers){
+      try{return await provider.generate(input);}
+      catch(e){last=e;if(!(e?.retryable || RETRYABLE.has(e?.status))) throw e;}
+    }
+    throw last || Object.assign(new Error('Video provider not configured'),{code:'CONFIGURATION'});
+  }};
+}
