@@ -1,7 +1,7 @@
 import {env} from '../config/env.js';
 import {createKeyPool} from './key-pool.js';
 import {researchProvider} from './research/provider.js';
-import {llmProvider} from './llm/provider.js';
+import {createVideoProvider} from './video/runtime.js';
 
 const ALIASES = {
   tavily:'tavily',openai:'openai',gpt:'openai',gemini:'gemini',google:'gemini',deepseek:'deepseek',groq:'groq',zai:'zai','z.ai':'zai',aihubmix:'aihubmix','ai hub mix':'aihubmix',openrouter:'openrouter',elevenlabs:'elevenlabs',sarvam:'sarvam',luma:'luma',runway:'runwayml',runwayml:'runwayml',fal:'fal',hf:'huggingface',huggingface:'huggingface'
@@ -39,7 +39,6 @@ export function providerKeyStatus(){const e=env();return Object.fromEntries(Obje
 export function providerFallbackChain(type,preferred=null){const configured=preferred?[preferred]:[];return [...new Set([...configured,...(FALLBACK_CHAINS[type]||[])].map(normalizeProviderName).filter(Boolean))];}
 
 function retryable(error){return Boolean(error?.retryable)||error?.code==='CONFIGURATION'||error?.code==='RATE_LIMIT'||error?.code==='PROVIDER'||error?.code==='UPSTREAM'||error?.code==='TIMEOUT'||RETRYABLE.has(error?.status||error?.statusCode);}
-function textFromResponse(data){return String(data?.choices?.[0]?.message?.content||data?.output_text||data?.candidates?.[0]?.content?.parts?.map(x=>x.text||'').join(' ')||'').trim();}
 
 async function callGemini(key,model,input){
   const prompt=typeof input==='string'?input:JSON.stringify(input);
@@ -78,5 +77,6 @@ export function createRuntimeProviders(overrides={}){
   const runtime={...overrides};
   if(!runtime.llm)runtime.llm=makeLLMProvider();
   if(!runtime.research){const research=makeResearchProvider();if(research)runtime.research=research;}
+  if(!runtime.video)runtime.video=createVideoProvider();
   return runtime;
 }
