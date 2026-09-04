@@ -1,2 +1,33 @@
-import {randomUUID} from 'node:crypto';import {claimJob} from '../queue/queue.claim.js';import {updateJob} from '../queue/queue.service.js';import {executeStep} from '../pipeline/pipeline.engine.js';import {logger} from '../utils/logger.js';import {registerWorker,heartbeat} from './worker-manager.js';
-const id=`worker-${randomUUID()}`;async function loop(){const job=await claimJob(id);if(!job){await new Promise(r=>setTimeout(r,3000));return loop()}try{await updateJob(job.id,{status:'running',worker_id:id,started_at:new Date().toISOString()});await heartbeat(id);const result=await executeStep(job.current_step||'research',{job,input:job.input||{},state:job.output?.state||{},checkpoint:job.checkpoint||{},providers:job.providers||{}});await updateJob(job.id,{status:'completed',output:{result},completed_at:new Date().toISOString(),progress_percent:100});}catch(e){logger.error('job failed',{job_id:job.id,error:e.message});await updateJob(job.id,{status:'failed',error_code:e.code||'FAILED',error_message:e.message})}return loop()}registerWorker(id).then(loop).catch(e=>{logger.error('worker stopped',{error:e.message});process.exit(1)});
+import {randomUUID} from 'node:crypto';
+import {claimJob} from '../queue/queue.claim.js';
+import {updateJob} from '../queue/queue.service.js';
+import {executeStep} from '../pipeline/pipeline.engine.js';
+import {logger} from '../utils/logger.js';
+import {registerWorker,heartbeat} from './worker-manager.js';
+import {withRuntimeProviderKeys} from '../providers/runtime.js';
+
+const id = `worker-${randomUUID()}`;
+
+async function loop() {
+  const job = await claimJob(id);
+  if (!job) { await new Promise(r => setTimeout(r, 3000)); return loop(); }
+  try {
+    await updateJob(job.id, {status: 'running', worker_id: id, started_at: new Date().toISOString()});
+    await heartbeat(id);
+    const providers = withRuntimeProviderKeys(job.providers || {});
+    const result = await executeStep(job.current_step || 'research', {
+      job,
+      input: job.input || {},
+      state: job.output?.state || {},
+      checkpoint: job.checkpoint || {},
+      providers
+    });
+    await updateJob(job.id, {status: 'completed', output: {result}, completed_at: new Date().toISOString(), progress_percent: 100});
+  } catch (e) {
+    logger.error('job failed', {job_id: job.id, error: e.message});
+    await updateJob(job.id, {status: 'failed', error_code: e.code || 'FAILED', error_message: e.message});
+  }
+  return loop();
+}
+
+registerWorker(id).then(loop).catch(e => { logger.error('worker stopped', {error: e.message}); process.exit(1); });
