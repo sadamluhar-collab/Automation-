@@ -1,6 +1,6 @@
-import {api} from './api.js';
+import {api} from './api.js?v=20260904-authfix';
 import {subscribeTables} from './realtime.js';
-import {getSession,getAccessToken,signIn,signUp,clearSession} from './auth.js';
+import {getSession,getAccessToken,signIn,signUp,clearSession} from './auth.js?v=20260904-authfix';
 
 const health=document.querySelector('#health');
 const realtime=document.querySelector('#realtime');
