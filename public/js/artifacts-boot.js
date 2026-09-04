@@ -1,0 +1,3 @@
+let activate=null;
+async function openArtifacts(){if(!activate){const module=await import('./artifacts.js?v=20260904-1');if(typeof module.activate!=='function')throw new Error('Artifacts module is unavailable');activate=module.activate()}activate()}
+document.querySelector('#nav button[data-section="artifacts"]')?.addEventListener('click',()=>openArtifacts().catch(error=>{const content=document.querySelector('#content');if(content)content.innerHTML=`<div class="card"><h2>Artifacts</h2><div class="empty error">Artifacts module failed to load: ${String(error.message||error)}</div></div>`;console.error('Artifacts module failed',error)}));
