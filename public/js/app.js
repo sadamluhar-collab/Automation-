@@ -9,7 +9,7 @@ const content=document.querySelector('#content');
 const title=document.querySelector('#page-title');
 
 const tableModules={channels:['channels'],projects:['projects','project_versions'],pipeline:['pipeline_runs','pipeline_steps','scenes','scene_versions'],jobs:['automation_jobs','job_items'],recovery:['faults','recovery_attempts'],commands:['commands'],schedules:['schedules'],analytics:['analytics'],artifacts:['artifacts'],memory:['channel_memory','channel_memory_versions']};
-const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escapeHtml=value=>String(value??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 
 let currentSection='overview';
 let channelRows=[];
@@ -46,10 +46,17 @@ async function loadChannels(){
 
 function bindAuth(){
   document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];window.location.reload()});
-  document.querySelector('#youtube-connect-btn')?.addEventListener('click',()=>{
+  document.querySelector('#youtube-connect-btn')?.addEventListener('click',async()=>{
     const message=document.querySelector('#youtube-message');
-    if(message)message.textContent='Opening Google YouTube authorization…';
-    window.location.assign('/api/youtube/connect');
+    if(message)message.textContent='Preparing Google YouTube authorization…';
+    try{
+      const result=await api('/api/youtube/connect',{cache:'no-store'});
+      if(!result?.authorization_url)throw new Error('YouTube authorization URL was not returned');
+      window.location.assign(result.authorization_url);
+    }catch(error){
+      if(error.status===401){clearSession();channelRows=[];renderChannels();return;}
+      if(message)message.textContent=`YouTube connection failed: ${error.message}`;
+    }
   });
   const params=new URLSearchParams(window.location.search);
   const youtubeResult=params.get('youtube');
