@@ -16,7 +16,7 @@ let channelRows=[];
 
 function renderAuthBox(){
   const session=getSession();
-  if(session?.access_token)return `<div class="card panel"><div class="item"><span>Authenticated</span><span class="badge">${escapeHtml(session.user?.email||'Signed in')}</span></div><button id="signout-btn" class="button">Sign out</button></div>`;
+  if(session?.access_token)return `<div class="card panel"><div class="item"><span>Authenticated</span><span class="badge">${escapeHtml(session.user?.email||'Signed in')}</span></div><div class="item"><button id="youtube-connect-btn" class="button" type="button">Connect YouTube</button><button id="signout-btn" class="button secondary" type="button">Sign out</button></div><div id="youtube-message" class="muted"></div></div>`;
   return `<div class="card panel"><h3>Sign in to load your channels</h3><p class="muted">Channels are tenant-scoped and require a Supabase access token.</p><form id="auth-form" class="auth-form"><input id="auth-email" type="email" autocomplete="email" placeholder="Email" required><input id="auth-password" type="password" autocomplete="current-password" placeholder="Password" minlength="6" required><div class="item"><button class="button" type="submit">Sign in</button><button class="button secondary" type="button" id="signup-btn">Create account</button></div><div id="auth-message" class="muted"></div></form></div>`;
 }
 
@@ -27,7 +27,7 @@ function renderChannels(){
     return;
   }
   const cards=channelRows.map(c=>`<div class="card channel-card"><div class="label">YouTube Channel</div><h2>${escapeHtml(c.name||c.youtube_handle||'Unnamed channel')}</h2><p class="muted">${escapeHtml(c.youtube_handle||c.youtube_channel_id||'')}</p><div class="list"><div class="item"><span>Subscribers</span><span class="badge">${Number(c.subscribers||0).toLocaleString()}</span></div><div class="item"><span>Videos</span><span class="badge">${Number(c.video_count||0).toLocaleString()}</span></div><div class="item"><span>Country</span><span class="badge">${escapeHtml(c.country||'—')}</span></div></div></div>`).join('');
-  content.innerHTML=`<div class="card"><div class="item"><div><h2>Channels</h2><p class="muted">Live channels from your workspace. Realtime changes update this list without a full database reload.</p></div><span class="badge">${channelRows.length} channel${channelRows.length===1?'':'s'}</span></div></div>${cards||'<div class="card"><div class="empty">No YouTube channels connected yet. Use the YouTube connection flow to add a real channel.</div></div>'}${renderAuthBox()}`;
+  content.innerHTML=`<div class="card"><div class="item"><div><h2>Channels</h2><p class="muted">Live channels from your workspace. Realtime changes update this list without a full database reload.</p></div><span class="badge">${channelRows.length} channel${channelRows.length===1?'':'s'}</span></div></div>${cards||'<div class="card"><div class="empty">No YouTube channels connected yet. Click Connect YouTube below to add a real channel.</div></div>'}${renderAuthBox()}`;
   bindAuth();
 }
 
@@ -46,6 +46,22 @@ async function loadChannels(){
 
 function bindAuth(){
   document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];window.location.reload()});
+  document.querySelector('#youtube-connect-btn')?.addEventListener('click',()=>{
+    const message=document.querySelector('#youtube-message');
+    if(message)message.textContent='Opening Google YouTube authorization…';
+    window.location.assign('/api/youtube/connect');
+  });
+  const params=new URLSearchParams(window.location.search);
+  const youtubeResult=params.get('youtube');
+  if(youtubeResult==='connected'){
+    const message=document.querySelector('#youtube-message');
+    if(message)message.textContent='YouTube channel connected successfully.';
+    history.replaceState(null,document.title,window.location.pathname);
+  }else if(youtubeResult==='error'){
+    const message=document.querySelector('#youtube-message');
+    if(message)message.textContent=`YouTube connection failed: ${params.get('message')||'Unknown error'}`;
+    history.replaceState(null,document.title,window.location.pathname);
+  }
   const form=document.querySelector('#auth-form');
   if(!form)return;
   form.addEventListener('submit',async event=>{
