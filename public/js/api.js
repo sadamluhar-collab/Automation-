@@ -1,4 +1,4 @@
-import {authHeaders,refreshSession} from './auth.js';
+import {authHeaders,refreshSession} from './auth.js?v=20260904-authfix';
 
 export async function api(path,init={}){
   const makeRequest=()=>{
