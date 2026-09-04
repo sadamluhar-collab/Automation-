@@ -54,5 +54,12 @@ export const projects={
     const version=(existing.version||1)+1;
     await query('project_versions',{method:'POST',params:'?select=id',headers:{Prefer:'return=representation'},body:{project_id:id,version,data:{name:nextName,mode:nextMode,status:nextStatus,config:{...defaults,...(config||existing.config||{})}}}});
     return withConfig(updated?.[0]||null);
+  },
+  remove:async({userId,id})=>{
+    const user=await userRow(userId);
+    if(!user)throw new Error('Workspace user not found');
+    const existing=await projects.get(id,userId);
+    if(!existing)throw new Error('Project not found');
+    return query('rpc/delete_project',{method:'POST',params:'',headers:{Prefer:'return=representation'},body:{p_project_id:id,p_tenant_id:user.tenant_id}}).then(rows=>Array.isArray(rows)?rows[0]||null:rows);
   }
 };
