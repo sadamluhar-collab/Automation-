@@ -51,6 +51,8 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname.startsWith('/api/pipeline/')&&req.method==='GET')return auth(req,res,()=>{req.params={step:u.pathname.split('/')[3]};pipeline.inspect(req,res)});
     if(u.pathname==='/api/workers'&&req.method==='GET')return auth(req,res,()=>workers.list(req,res));
     if(u.pathname==='/api/faults'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return auth(req,res,()=>faults.list(req,res))}
+    if(u.pathname.startsWith('/api/faults/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};faults.get(req,res)});
+    if(u.pathname.startsWith('/api/faults/')&&u.pathname.endsWith('/action')&&req.method==='POST'){req.params={id:u.pathname.split('/')[3]};req.body=await json(req);return auth(req,res,()=>faults.action(req,res))}
     if(u.pathname==='/api/analytics'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return auth(req,res,()=>analytics.list(req,res))}
     if(u.pathname==='/api/settings'&&req.method==='GET')return auth(req,res,()=>settings.get(req,res));
     if(u.pathname==='/api/youtube/connect'&&req.method==='GET')return auth(req,res,()=>youtube.connect(req,res));
