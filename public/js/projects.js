@@ -55,7 +55,17 @@ async function runProject(id){
   const p=projectRows.find(x=>x.id===id);if(!p)return;const message=document.querySelector('#editor-message')||document.querySelector('#project-message');if(message)message.textContent='Starting durable pipeline job…';
   try{const result=await api(`/api/projects/${encodeURIComponent(id)}/run`,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});if(!result?.data?.job)throw new Error('Pipeline job was not created');const next={...p,status:'running'};projectRows=projectRows.map(x=>x.id===id?next:x);selected=next;renderProjects();const m=document.querySelector('#editor-message');if(m)m.textContent=`Started. Job ${result.data.job.id||'created'} is queued at Research.`}catch(error){if(message)message.textContent=`Start failed: ${error.message}`}}
 
-function activate(){if(document.querySelector('#page-title'))document.querySelector('#page-title').textContent='Projects';if(!getAccessToken()){document.querySelector('#content').innerHTML='<div class="card"><h2>Projects</h2><div class="empty">Sign in to manage projects.</div></div>';return}document.querySelector('#content').innerHTML='<div class="card"><div class="empty">Loading project workspace…</div></div>';loadProjects()}
+function activate(){
+  if(document.querySelector('#page-title'))document.querySelector('#page-title').textContent='Projects';
+  if(!getAccessToken()){
+    document.querySelector('#content').innerHTML='<div class="card"><h2>Projects</h2><div class="empty">Sign in to manage projects.</div></div>';
+    return;
+  }
+  document.querySelector('#content').innerHTML='<div class="card"><div class="empty">Loading project workspace…</div></div>';
+  loadProjects();
+}
 
 document.querySelectorAll('#nav button[data-section="projects"]').forEach(button=>button.addEventListener('click',()=>setTimeout(activate,0)));
 window.addEventListener('automation:projects',activate);
+
+export {activate,loadProjects};
