@@ -3,6 +3,7 @@ import {subscribeTables} from './realtime.js';
 
 const health=document.querySelector('#health');
 const realtime=document.querySelector('#realtime');
+const internetStatusEl=document.querySelector('#internet-status');
 const content=document.querySelector('#content');
 const title=document.querySelector('#page-title');
 
@@ -12,7 +13,7 @@ const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<
 const render=section=>{
   title.textContent=section[0].toUpperCase()+section.slice(1);
   if(section==='overview'){
-    content.innerHTML=`<div class="grid"><div class="card"><div class="label">API</div><div class="metric" id="api-metric">Checking</div><div class="muted">Backend availability</div></div><div class="card"><div class="label">Realtime</div><div class="metric" id="rt-metric">Connecting</div><div class="muted">Supabase synchronization</div></div><div class="card"><div class="label">Architecture</div><div class="metric">Ready</div><div class="muted">API · Queue · Workers · Recovery</div></div></div><div class="card panel"><h2>System</h2><div class="list"><div class="item"><span>Durable queue</span><span class="badge">Postgres</span></div><div class="item"><span>Workers</span><span class="badge">Disposable + heartbeat</span></div><div class="item"><span>Recovery</span><span class="badge">Automatic repair</span></div><div class="item"><span>Data sync</span><span class="badge">Realtime events</span></div></div></div>`;
+    content.innerHTML=`<div class="grid"><div class="card"><div class="label">API</div><div class="metric" id="api-metric">Checking</div><div class="muted">Backend availability</div></div><div class="card"><div class="label">Internet</div><div class="metric" id="internet-metric">Checking</div><div class="muted" id="internet-detail">Live outbound internet connectivity</div></div><div class="card"><div class="label">Realtime</div><div class="metric" id="rt-metric">Connecting</div><div class="muted">Supabase synchronization</div></div><div class="card"><div class="label">Architecture</div><div class="metric">Ready</div><div class="muted">API · Queue · Workers · Recovery</div></div></div><div class="card panel"><h2>System</h2><div class="list"><div class="item"><span>Durable queue</span><span class="badge">Postgres</span></div><div class="item"><span>Workers</span><span class="badge">Disposable + heartbeat</span></div><div class="item"><span>Recovery</span><span class="badge">Automatic repair</span></div><div class="item"><span>Data sync</span><span class="badge">Realtime events</span></div><div class="item"><span>Internet</span><span class="badge">Live outbound probe + fallback research</span></div></div></div>`;
     return;
   }
   const tables=tableModules[section]||[];
@@ -46,7 +47,27 @@ const checkApi=async()=>{
   console.error('API health check failed',lastError);
 };
 
+const checkInternet=async()=>{
+  try{
+    const x=await api(`/api/internet-status?t=${Date.now()}`,{cache:'no-store'});
+    if(x?.success&&x.status==='live'){
+      internetStatusEl.textContent=`INTERNET LIVE ${x.latency_ms}ms`;
+      const metric=document.querySelector('#internet-metric');if(metric)metric.textContent='LIVE';
+      const detail=document.querySelector('#internet-detail');if(detail)detail.textContent=`Outbound internet · ${x.latency_ms}ms · ${new Date(x.checked_at).toLocaleTimeString()}`;
+      return;
+    }
+    throw new Error(x?.error||'Internet probe failed');
+  }catch(error){
+    internetStatusEl.textContent='INTERNET OFFLINE';
+    const metric=document.querySelector('#internet-metric');if(metric)metric.textContent='OFFLINE';
+    const detail=document.querySelector('#internet-detail');if(detail)detail.textContent='No live outbound internet connection from API';
+    console.error('Internet connectivity check failed',error);
+  }
+};
+
 checkApi();
+checkInternet();
+setInterval(checkInternet,10000);
 
 subscribeTables({tables:[...new Set(Object.values(tableModules).flat())],onStatus:status=>{
   realtime.textContent=`REALTIME ${status.toUpperCase()}`;
