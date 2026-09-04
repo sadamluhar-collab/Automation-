@@ -41,36 +41,29 @@ async function hasAudio(ffmpeg,input){
 }
 
 async function normalize(ffmpeg,input,output,audio){
-  const video=['-y','-hide_banner','-loglevel','error','-i',input];
-  if(!audio)video.push('-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000');
-  video.push('-map','0:v:0',audio?'-map':'-map','1:a:0');
-  if(audio)video.splice(video.indexOf('1:a:0'),1,'-map','0:a:0');
-  video.push('-vf','scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p','-r','30','-c:v','libx264','-preset','veryfast','-crf','20','-c:a','aac','-ar','48000','-ac','2','-shortest',output);
-  await exec(ffmpeg,video);
+  const args=['-y','-hide_banner','-loglevel','error','-i',input];
+  if(!audio)args.push('-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000');
+  args.push('-map','0:v:0');
+  args.push('-map',audio?'0:a:0':'1:a:0');
+  args.push('-vf','scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p','-r','30','-c:v','libx264','-preset','veryfast','-crf','20','-c:a','aac','-ar','48000','-ac','2','-shortest',output);
+  await exec(ffmpeg,args);
 }
 
 export async function run(ctx){
   const ffmpeg=ctx.ffmpeg||'ffmpeg';
   const configuredInput=ctx.input||{};
-  const state=ctx.state||{};
-  const clipResults=state.clips?.result;
-  const clipUrls=urlsFrom(clipResults);
-  const directFiles=Array.isArray(configuredInput.listFile)?configuredInput.listFile:[];
-  if(!clipUrls.length&&!directFiles.length)throw Object.assign(new Error('Assembly requires generated video clips'),{code:'ASSEMBLY_INPUT_MISSING'});
+  const clipUrls=urlsFrom(ctx.state?.clips?.result);
+  if(!clipUrls.length)throw Object.assign(new Error('Assembly requires generated video clips with downloadable URLs'),{code:'ASSEMBLY_INPUT_MISSING'});
 
   const root=await mkdtemp(join(tmpdir(),'automation-assembly-'));
   try{
     const sources=[];
-    if(clipUrls.length){
-      for(let i=0;i<clipUrls.length;i++){
-        const raw=join(root,`source-${i}.mp4`);
-        const normalized=join(root,`clip-${i}.mp4`);
-        await download(clipUrls[i],raw);
-        await normalize(ffmpeg,raw,normalized,await hasAudio(ffmpeg,raw));
-        sources.push(normalized);
-      }
-    }else{
-      for(const file of directFiles)sources.push(String(file));
+    for(let i=0;i<clipUrls.length;i++){
+      const raw=join(root,`source-${i}.mp4`);
+      const normalized=join(root,`clip-${i}.mp4`);
+      await download(clipUrls[i],raw);
+      await normalize(ffmpeg,raw,normalized,await hasAudio(ffmpeg,raw));
+      sources.push(normalized);
     }
     const listFile=join(root,'clips.txt');
     await writeFile(listFile,sources.map(file=>`file '${file.replaceAll("'","'\\''")}'`).join('\n')+'\n','utf8');
