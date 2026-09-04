@@ -1,0 +1,3 @@
+let activate=null;
+async function openRecovery(){if(!activate){const module=await import('./recovery.js?v=20260904-1');if(typeof module.activate!=='function')throw new Error('Recovery module is unavailable');activate=module.activate}activate()}
+document.querySelector('#nav button[data-section="recovery"]')?.addEventListener('click',()=>openRecovery().catch(error=>{const content=document.querySelector('#content');if(content)content.innerHTML=`<div class="card"><h2>Recovery</h2><div class="empty error">Recovery module failed to load: ${String(error.message||error)}</div></div>`;console.error('Recovery module failed',error)}));
