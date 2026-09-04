@@ -56,6 +56,8 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==='/api/jobs'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>jobs.create(req,res))}
     if(u.pathname.startsWith('/api/jobs/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};jobs.get(req,res)});
     if(u.pathname==='/api/commands'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>commands.execute(req,res))}
+    if(u.pathname==='/api/pipeline/runs'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return auth(req,res,()=>pipeline.list(req,res))}
+    if(u.pathname.startsWith('/api/pipeline/runs/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[4]};pipeline.get(req,res)});
     if(u.pathname.startsWith('/api/pipeline/')&&req.method==='GET')return auth(req,res,()=>{req.params={step:u.pathname.split('/')[3]};pipeline.inspect(req,res)});
     if(u.pathname==='/api/workers'&&req.method==='GET')return auth(req,res,()=>workers.list(req,res));
     if(u.pathname==='/api/faults'&&req.method==='GET')return auth(req,res,()=>{req.query=Object.fromEntries(u.searchParams);faults.list(req,res)});
