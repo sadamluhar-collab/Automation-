@@ -37,15 +37,3 @@ services:
         sync: false
       - key: WORKER_SECRET
         sync: false
-  - type: worker
-    name: automation-scheduler
-    runtime: docker
-    plan: free
-    dockerCommand: node src/workers/scheduler-worker.js
-    envVars:
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: WORKER_SECRET
-        sync: false
