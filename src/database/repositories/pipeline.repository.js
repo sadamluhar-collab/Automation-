@@ -68,7 +68,7 @@ export const pipeline={
   inspectStep:step=>({step,dependencies:stepDeps(step),downstream:downstream(step)})
 };
 
-const depMap={research:[], 'content-plan':['research'],script:['content-plan'],scenes:['script'],references:['scenes'],clips:['references'],audio:['script'],music:['audio'],assembly:['clips','audio','music'],thumbnail:['assembly'],qc:['assembly','thumbnail'],upload:['qc'],analytics:['upload']};
+const depMap={research:[], 'content-plan':['research'],script:['content-plan'],scenes:['script'],references:['scenes'],clips:['references'],audio:['script'],music:[],assembly:['clips','audio','music'],thumbnail:['assembly'],qc:['assembly','thumbnail'],upload:['qc'],analytics:['upload']};
 const stepDeps=step=>depMap[step]||[];
 const downstream=step=>{
   const out=[];
