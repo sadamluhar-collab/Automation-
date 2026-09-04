@@ -14,6 +14,29 @@ function executionInput(job,state){
   return {...(job.input||{}),pipeline_state:state,previous_result:state?.[job.current_step]?.result||null};
 }
 
+function optionalStepDisabled(job,step){
+  const config=job.input?.config||{};
+  if(step==='audio')return config.use_audio!==true;
+  if(step==='music')return config.use_music!==true;
+  return false;
+}
+
+async function skipPipelineStep({job,runId,run,step,stepRow,state,reason}){
+  state[step]={status:'skipped',result:{skipped:true,reason}};
+  const index=pipeline.steps.indexOf(step);
+  const next=pipeline.steps[index+1];
+  const progress=Math.round(((index+1)/pipeline.steps.length)*100);
+  await pipeline.updateStep(stepRow.id,{status:'skipped',progress:100,checkpoint:{status:'skipped',reason},completed_at:new Date().toISOString(),error:null});
+  if(next){
+    await pipeline.updateRun(runId,{status:'running',current_step:next,progress,state});
+    await updateJob(job.id,{status:'queued',current_step:next,progress_percent:progress,checkpoint:{pipeline_run_id:runId,completed_step:step,skipped:true},output:{state},lease_until:null,worker_id:null,started_at:null});
+    return {status:'advanced',next};
+  }
+  await pipeline.updateRun(runId,{status:'completed',current_step:step,progress:100,state});
+  await updateJob(job.id,{status:'completed',output:{state},completed_at:new Date().toISOString(),progress_percent:100,checkpoint:{pipeline_run_id:runId,completed_step:step,skipped:true}});
+  return {status:'completed'};
+}
+
 async function runPipelineJob(job){
   let runId=job.input?.pipeline_run_id;
   if(!runId){
@@ -30,6 +53,10 @@ async function runPipelineJob(job){
 
   await pipeline.updateRun(runId,{status:'running',current_step:step,state,progress:Math.max(Number(run.progress)||0,0)});
   await pipeline.updateStep(stepRow.id,{status:'running',progress:0,started_at:new Date().toISOString(),error:null});
+
+  if(optionalStepDisabled(job,step)){
+    return skipPipelineStep({job,runId,run,step,stepRow,state,reason:step==='audio'?'Project audio disabled':'Project background music disabled'});
+  }
 
   const providers=createRuntimeProviders(withRuntimeProviderKeys(job.providers||{}));
   const input=executionInput(job,state);
