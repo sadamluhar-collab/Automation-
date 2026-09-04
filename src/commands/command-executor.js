@@ -1,5 +1,6 @@
 import {validateCommand} from './command-validator.js';
 import {jobs} from '../database/repositories/job.repository.js';
+import {pipeline} from '../database/repositories/pipeline.repository.js';
 
 const now=()=>new Date().toISOString();
 
@@ -31,7 +32,27 @@ export async function executeCommand(command,jobId,userId){
     patch.status='queued';patch.retry_count=0;patch.progress_percent=0;patch.completed_items=0;patch.failed_items=0;patch.current_item=null;patch.current_step=job.current_step||null;patch.next_attempt_at=now();patch.error_code=null;patch.error_message=null;patch.lease_until=null;patch.started_at=null;patch.completed_at=null;
   }else if(command==='SKIP'){
     if(['completed','cancelled','skipped'].includes(job.status))throw Object.assign(new Error(`Cannot skip a ${job.status} job`),{status:409,code:'INVALID_STATE'});
-    patch.status='skipped';patch.completed_at=now();patch.lease_until=null;
+    if(job.job_type==='pipeline'&&job.input?.pipeline_run_id){
+      const runId=job.input.pipeline_run_id;
+      const step=job.current_step||'research';
+      const index=pipeline.steps.indexOf(step);
+      if(index<0)throw Object.assign(new Error(`Unknown pipeline step ${step}`),{status:409,code:'INVALID_STEP'});
+      const stepRow=await pipeline.getStep({runId,step});
+      if(stepRow)await pipeline.updateStep(stepRow.id,{status:'skipped',progress:100,completed_at:now(),error:null,checkpoint:{status:'skipped'}});
+      const next=pipeline.steps[index+1];
+      if(next){
+        const nextRow=await pipeline.getStep({runId,step:next});
+        if(nextRow)await pipeline.updateStep(nextRow.id,{status:'queued',progress:0,error:null});
+        const progress=Math.round(((index+1)/pipeline.steps.length)*100);
+        await pipeline.updateRun(runId,{status:'running',current_step:next,progress});
+        patch.status='queued';patch.current_step=next;patch.progress_percent=progress;patch.next_attempt_at=now();patch.error_code=null;patch.error_message=null;patch.lease_until=null;patch.worker_id=null;patch.started_at=null;patch.completed_at=null;
+      }else{
+        await pipeline.updateRun(runId,{status:'completed',current_step:step,progress:100});
+        patch.status='skipped';patch.completed_at=now();patch.lease_until=null;patch.worker_id=null;
+      }
+    }else{
+      patch.status='skipped';patch.completed_at=now();patch.lease_until=null;patch.worker_id=null;
+    }
   }else if(command==='CANCEL'){
     if(['completed','cancelled','skipped'].includes(job.status))throw Object.assign(new Error(`Cannot cancel a ${job.status} job`),{status:409,code:'INVALID_STATE'});
     patch.status='cancelled';patch.lease_until=null;
