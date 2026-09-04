@@ -45,29 +45,30 @@ async function loadChannels(){
 }
 
 function bindAuth(){
-  document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];renderChannels();});
+  document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];window.location.reload()});
   const form=document.querySelector('#auth-form');
   if(!form)return;
   form.addEventListener('submit',async event=>{
     event.preventDefault();
     const message=document.querySelector('#auth-message');
     message.textContent='Signing in…';
-    try{await signIn(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);message.textContent='Signed in.';await loadChannels()}catch(error){message.textContent=error.message}
+    try{await signIn(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);window.location.reload()}catch(error){message.textContent=error.message}
   });
   document.querySelector('#signup-btn')?.addEventListener('click',async()=>{
     const message=document.querySelector('#auth-message');
     message.textContent='Creating account…';
-    try{const result=await signUp(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);message.textContent=result?.access_token?'Account created and signed in.':'Account created. Confirm your email, then sign in.';if(result?.access_token)await loadChannels()}catch(error){message.textContent=error.message}
+    try{const result=await signUp(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);if(result?.access_token)window.location.reload();else message.textContent='Account created. Confirm your email, then sign in.'}catch(error){message.textContent=error.message}
   });
 }
 
 const render=section=>{
-  currentSection=section;
   title.textContent=section[0].toUpperCase()+section.slice(1);
   if(section==='overview'){
+    currentSection=section;
     content.innerHTML=`<div class="grid"><div class="card"><div class="label">API</div><div class="metric" id="api-metric">Checking</div><div class="muted">Backend availability</div></div><div class="card"><div class="label">Internet</div><div class="metric" id="internet-metric">Checking</div><div class="muted" id="internet-detail">Live outbound internet connectivity</div></div><div class="card"><div class="label">Realtime</div><div class="metric" id="rt-metric">Connecting</div><div class="muted">Supabase synchronization</div></div><div class="card"><div class="label">Architecture</div><div class="metric">Ready</div><div class="muted">API · Queue · Workers · Recovery</div></div></div><div class="card panel"><h2>System</h2><div class="list"><div class="item"><span>Durable queue</span><span class="badge">Postgres</span></div><div class="item"><span>Workers</span><span class="badge">Disposable + heartbeat</span></div><div class="item"><span>Recovery</span><span class="badge">Automatic repair</span></div><div class="item"><span>Data sync</span><span class="badge">Realtime events</span></div><div class="item"><span>Internet</span><span class="badge">Live outbound probe + fallback research</span></div></div></div>`;
     return;
   }
+  currentSection=section;
   if(section==='channels'){renderChannels();loadChannels();return;}
   const tables=tableModules[section]||[];
   content.innerHTML=`<div class="card"><h2>${escapeHtml(section)}</h2><p class="muted">Live module is connected to the ${tables.join(', ')} data stream.</p><div class="empty">Waiting for authenticated module data. Realtime changes will appear here without a full database reload.</div></div>`;
