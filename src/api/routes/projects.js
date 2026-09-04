@@ -1,4 +1,5 @@
 import {projects} from '../../database/repositories/project.repository.js';
+import {projectStrategy} from '../../database/repositories/project-strategy.repository.js';
 import {enqueue} from '../../queue/queue.service.js';
 
 const send=(res,status,data)=>{res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.setHeader('cache-control','no-store');res.end(JSON.stringify(data))};
@@ -45,7 +46,8 @@ export async function run(req,res){
     const id=String(req.params.id||'').trim();
     const project=await projects.get(id,req.user.id);
     if(!project)return send(res,404,{success:false,error:{code:'NOT_FOUND',message:'Project not found'}});
-    const job=await enqueue({user_id:req.user.id,channel_id:project.channel_id,project_id:project.id,job_type:'pipeline',current_step:'research',input:{project_id:project.id,config:project.config||{}},priority:4,max_retries:3});
+    const strategy=await projectStrategy.get({userId:req.user.id,projectId:project.id});
+    const job=await enqueue({user_id:req.user.id,channel_id:project.channel_id,project_id:project.id,job_type:'pipeline',current_step:'research',input:{project_id:project.id,config:project.config||{},strategy:strategy||null},priority:4,max_retries:3});
     await projects.update({userId:req.user.id,id,status:'running',config:project.config});
     send(res,202,{success:true,data:{project_id:project.id,job}});
   }catch(error){
