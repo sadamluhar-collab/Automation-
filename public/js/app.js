@@ -45,14 +45,14 @@ async function loadChannels(){
 }
 
 function bindAuth(){
-  document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];window.location.reload()});
+  document.querySelector('#signout-btn')?.addEventListener('click',()=>{clearSession();channelRows=[];render(currentSection)});
   document.querySelector('#youtube-connect-btn')?.addEventListener('click',async()=>{const message=document.querySelector('#youtube-message');if(message)message.textContent='Preparing Google YouTube authorization…';try{const result=await api('/api/youtube/connect',{cache:'no-store'});if(!result?.authorization_url)throw new Error('YouTube authorization URL was not returned');window.location.assign(result.authorization_url)}catch(error){if(error.status===401){clearSession();channelRows=[];renderChannels();return}if(message)message.textContent=`YouTube connection failed: ${error.message}`}});
   const params=new URLSearchParams(window.location.search);const youtubeResult=params.get('youtube');
   if(youtubeResult==='connected'){const message=document.querySelector('#youtube-message');if(message)message.textContent='YouTube channel connected successfully.';history.replaceState(null,document.title,window.location.pathname)}
   else if(youtubeResult==='error'){const message=document.querySelector('#youtube-message');if(message)message.textContent=`YouTube connection failed: ${params.get('message')||'Unknown error'}`;history.replaceState(null,document.title,window.location.pathname)}
   const form=document.querySelector('#auth-form');if(!form)return;
-  form.addEventListener('submit',async event=>{event.preventDefault();const message=document.querySelector('#auth-message');message.textContent='Signing in…';try{await signIn(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);window.location.reload()}catch(error){message.textContent=error.message}});
-  document.querySelector('#signup-btn')?.addEventListener('click',async()=>{const message=document.querySelector('#auth-message');message.textContent='Creating account…';try{const result=await signUp(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);if(result?.access_token)window.location.reload();else message.textContent='Account created. Confirm your email, then sign in.'}catch(error){message.textContent=error.message}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const message=document.querySelector('#auth-message');message.textContent='Signing in…';try{await signIn(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);await render(currentSection)}catch(error){message.textContent=error.message}});
+  document.querySelector('#signup-btn')?.addEventListener('click',async()=>{const message=document.querySelector('#auth-message');message.textContent='Creating account…';try{const result=await signUp(document.querySelector('#auth-email').value.trim(),document.querySelector('#auth-password').value);if(result?.access_token)await render(currentSection);else message.textContent='Account created. Confirm your email, then sign in.'}catch(error){message.textContent=error.message}});
 }
 
 const render=async section=>{
