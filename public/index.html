@@ -1,1 +1,35 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Automation Platform</title><link rel="stylesheet" href="/css/app.css"></head><body><main><h1>Automation Platform</h1><p id="health">DATA UNAVAILABLE</p><p id="realtime" aria-live="polite">REALTIME CONNECTING</p></main><script type="module" src="/js/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Automation Platform</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">Automation</div>
+    <nav id="nav">
+      <button data-section="overview" class="active">Overview</button>
+      <button data-section="channels">Channels</button>
+      <button data-section="projects">Projects</button>
+      <button data-section="pipeline">Pipeline</button>
+      <button data-section="jobs">Jobs</button>
+      <button data-section="recovery">Recovery</button>
+      <button data-section="commands">Commands</button>
+      <button data-section="schedules">Schedules</button>
+      <button data-section="analytics">Analytics</button>
+      <button data-section="artifacts">Artifacts</button>
+      <button data-section="memory">Memory</button>
+    </nav>
+  </aside>
+  <main class="app-shell">
+    <header class="topbar">
+      <div><h1 id="page-title">Overview</h1><p class="muted">Automation control plane</p></div>
+      <div class="status-row"><span id="health" class="status">CHECKING API</span><span id="realtime" class="status">REALTIME CONNECTING</span></div>
+    </header>
+    <section id="content" class="content"></section>
+  </main>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
