@@ -1,0 +1,3 @@
+let activate=null;
+async function openCommands(){if(!activate){const module=await import('./commands.js?v=20260904-1');if(typeof module.activate!=='function')throw new Error('Commands module is unavailable');activate=module.activate}activate()}
+document.querySelector('#nav button[data-section="commands"]')?.addEventListener('click',()=>openCommands().catch(error=>{const content=document.querySelector('#content');if(content)content.innerHTML=`<div class="card"><h2>Commands</h2><div class="empty error">Commands module failed to load: ${String(error.message||error)}</div></div>`;console.error('Commands module failed',error)}));
