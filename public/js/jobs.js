@@ -2,7 +2,7 @@ import {api} from './api.js';
 import {getAccessToken} from './auth.js';
 
 const STATUSES=['queued','retrying','running','completed','failed','cancelled'];
-let jobs=[];let projects=[];let selected=null;let status='';let project='';let timer=null;
+let jobs=[];let projects=[];let selected=null;let status='';let project='';
 const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 const label=v=>String(v||'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const time=v=>v?new Date(v).toLocaleString():'—';
@@ -51,5 +51,5 @@ async function select(id){selected=jobs.find(j=>j.id===id)||selected;render();co
 async function action(name){
  try{const r=await api(`/api/jobs/${encodeURIComponent(selected.id)}`,{method:'POST',body:JSON.stringify({action:name})});selected=r?.data||selected;await load()}catch(error){const box=document.querySelector('#job-detail');if(box)box.insertAdjacentHTML('afterbegin',`<div class="job-error">${esc(error.message)}</div>`)}
 }
-export function activate(){clearInterval(timer);window.removeEventListener('automation:automation_jobs',onRealtime);window.addEventListener('automation:automation_jobs',onRealtime);timer=setInterval(()=>{if(document.querySelector('#jobs-refresh'))load()},5000);render();load()}
+export function activate(){window.removeEventListener('automation:automation_jobs',onRealtime);window.addEventListener('automation:automation_jobs',onRealtime);render();load()}
 const onRealtime=()=>load();
