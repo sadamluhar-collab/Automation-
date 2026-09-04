@@ -1,6 +1,6 @@
 import {api} from './api.js';
 import {getAccessToken} from './auth.js';
-import {strategyPanel,bindStrategy} from './project-strategy.js';
+import {strategyPanel,bindStrategy,loadStrategy} from './project-strategy.js';
 
 const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 const steps=[
@@ -119,9 +119,7 @@ async function createProject(event){
     selected=result.data;
     renderProjects();
     document.querySelector('#project-editor')?.scrollIntoView({behavior:'smooth',block:'start'});
-    if(document.querySelector('#project-analyze')?.checked!==false){
-      await analyzeSelectedProject();
-    }
+    if(document.querySelector('#project-analyze')?.checked!==false)await analyzeSelectedProject();
   }catch(error){
     if(message)message.textContent=error.message;
   }
@@ -139,12 +137,7 @@ async function analyzeSelectedProject(){
     const cfg=configFromEditor();
     const result=await api(`/api/projects/${encodeURIComponent(selected.id)}/strategy/analyze`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({config:{topic:cfg.topic,language:cfg.language,content_type:cfg.content_type,tone:cfg.tone,audience:cfg.audience,research_depth:cfg.research_depth}})});
     if(!result?.data?.strategy)throw new Error('Strategy was not generated');
-    const strategy=result.data.strategy;
-    const box=document.querySelector('#strategy-result');
-    if(box){
-      const module=await import('./project-strategy.js');
-      box.innerHTML=module.renderStrategy?module.renderStrategy(strategy):box.innerHTML;
-    }
+    await loadStrategy(selected.id);
     if(status)status.textContent='Analyzed';
     if(message)message.textContent=`Analysis saved. ${Number(result.data.source?.videos?.length||0)} recent videos analyzed.`;
   }catch(error){
