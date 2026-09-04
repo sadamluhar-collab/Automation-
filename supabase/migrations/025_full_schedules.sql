@@ -1,0 +1,10 @@
+alter table public.schedules add column if not exists project_id uuid references public.projects(id) on delete cascade;
+alter table public.schedules add column if not exists name text not null default 'Scheduled automation';
+alter table public.schedules add column if not exists schedule_type text not null default 'once';
+alter table public.schedules add column if not exists cron_expression text;
+alter table public.schedules add column if not exists payload jsonb not null default '{}';
+alter table public.schedules add column if not exists last_error text;
+alter table public.schedules add column if not exists updated_at timestamptz not null default now();
+alter table public.schedules add column if not exists status text not null default 'active';
+create index if not exists schedules_due_idx on public.schedules(enabled,next_run_at);
+create index if not exists schedules_project_idx on public.schedules(project_id);
