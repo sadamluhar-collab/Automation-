@@ -2,9 +2,7 @@ import {query} from '../supabase.js';
 import {projects} from './project.repository.js';
 
 const steps=['research','content-plan','script','scenes','references','clips','audio','music','assembly','thumbnail','qc','upload','analytics'];
-
 const runSelect='*';
-
 const userOwnsProject=async(projectId,userId)=>Boolean(await projects.get(projectId,userId));
 
 const latestSceneVersions=async scenes=>{
@@ -19,6 +17,27 @@ const latestSceneVersions=async scenes=>{
 
 export const pipeline={
   steps,
+  createRun:async({userId,projectId,state={}})=>{
+    if(!(await userOwnsProject(projectId,userId)))throw new Error('Project not found');
+    const created=await query('pipeline_runs',{method:'POST',params:'?select=*',headers:{Prefer:'return=representation'},body:{project_id:projectId,status:'queued',current_step:steps[0],progress:0,state}});
+    const run=created?.[0];
+    if(!run?.id)throw new Error('Pipeline run could not be created');
+    const rows=steps.map((step,index)=>({pipeline_run_id:run.id,step,status:index===0?'queued':'queued',progress:0,checkpoint:{}}));
+    await query('pipeline_steps',{method:'POST',params:'?select=*',headers:{Prefer:'return=representation'},body:rows});
+    return run;
+  },
+  updateRun:async(id,patch)=>{
+    const rows=await query('pipeline_runs',{method:'PATCH',params:`?id=eq.${encodeURIComponent(id)}&select=*`,headers:{Prefer:'return=representation'},body:{...patch,updated_at:new Date().toISOString()}});
+    return rows?.[0]||null;
+  },
+  updateStep:async(id,patch)=>{
+    const rows=await query('pipeline_steps',{method:'PATCH',params:`?id=eq.${encodeURIComponent(id)}&select=*`,headers:{Prefer:'return=representation'},body:patch});
+    return rows?.[0]||null;
+  },
+  getStep:async({runId,step})=>{
+    const rows=await query('pipeline_steps',{params:`?pipeline_run_id=eq.${encodeURIComponent(runId)}&step=eq.${encodeURIComponent(step)}&select=*&limit=1`});
+    return rows[0]||null;
+  },
   list:async({userId,projectId,status}={})=>{
     let projectIds=null;
     if(projectId){
