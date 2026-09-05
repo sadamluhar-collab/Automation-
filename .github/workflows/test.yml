@@ -3,6 +3,9 @@ on: [push,pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: https://example.com
+      YOUTUBE_REDIRECT_URI: https://example.com/api/youtube/callback
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
