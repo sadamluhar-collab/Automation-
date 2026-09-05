@@ -8,13 +8,17 @@ const API_BASE=(process.env.API_BASE_URL||'').replace(/\/$/,'');
 if(!API_BASE) console.warn('API_BASE_URL is not configured');
 const root=path.dirname(fileURLToPath(import.meta.url));
 const publicDir=path.join(root,'public');
-const allowed=new Set(['/health','/api/realtime-config','/api/internet-status','/api/channels','/api/projects','/api/jobs','/api/pipeline/runs','/api/faults','/api/analytics','/api/analytics/channels','/api/artifacts','/api/memory','/api/schedules']);
+const allowed=new Set(['/health','/api/realtime-config','/api/auth/login','/api/internet-status','/api/channels','/api/projects','/api/jobs','/api/pipeline/runs','/api/faults','/api/analytics','/api/analytics/channels','/api/artifacts','/api/memory','/api/schedules']);
 const send=(res,status,data)=>{res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.setHeader('cache-control','no-store');res.end(JSON.stringify(data));};
+const readBody=async req=>{let s='';for await(const c of req)s+=c;return s};
 const proxy=async(req,res,url)=>{
   if(!API_BASE)return send(res,503,{success:false,error:{code:'API_BASE_MISSING',message:'Monitoring API is not configured'}});
   const target=new URL(url,API_BASE); const headers={};
   if(req.headers.authorization)headers.authorization=req.headers.authorization;
-  const r=await fetch(target,{method:'GET',headers});
+  if(req.headers['content-type'])headers['content-type']=req.headers['content-type'];
+  const options={method:req.method,headers};
+  if(req.method!=='GET'&&req.method!=='HEAD')options.body=await readBody(req);
+  const r=await fetch(target,options);
   const body=await r.text(); res.statusCode=r.status; res.setHeader('content-type',r.headers.get('content-type')||'application/json');res.setHeader('cache-control','no-store');res.end(body);
 };
 const server=http.createServer(async(req,res)=>{
@@ -22,7 +26,9 @@ const server=http.createServer(async(req,res)=>{
     const u=new URL(req.url,`http://${req.headers.host||'localhost'}`);
     if(u.pathname==='/health'){return send(res,200,{success:true,status:'ok',service:'monitor-ui'});}
     if(u.pathname.startsWith('/api/')){
-      if(req.method!=='GET'||![...allowed].some(p=>u.pathname===p||u.pathname.startsWith(`${p}/`)))return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
+      if(![...allowed].some(p=>u.pathname===p||u.pathname.startsWith(`${p}/`)))return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
+      if(u.pathname==='/api/auth/login'&&req.method!=='POST')return send(res,405,{success:false,error:{code:'METHOD_NOT_ALLOWED'}});
+      if(u.pathname!=='/api/auth/login'&&req.method!=='GET')return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
       return proxy(req,res,`${u.pathname}${u.search}`);
     }
     if(req.method!=='GET')return send(res,405,{success:false,error:{code:'METHOD_NOT_ALLOWED'}});
