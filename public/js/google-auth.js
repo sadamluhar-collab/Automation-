@@ -1,5 +1,5 @@
 const SESSION_KEY='automation.auth.session';
-const GOOGLE_CLIENT_ID='819928266856-7hmgvbsrbq2crvppbt5sqilhmmavkit2s.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID='819928266856-7hmgvb5rbq2crvpp8t5sq1hmmqvktr2s.apps.googleusercontent.com';
 const config=async()=>{const r=await fetch('/api/realtime-config',{cache:'no-store'});if(!r.ok)throw new Error('Authentication configuration unavailable');const x=await r.json();if(!x?.url)throw new Error('Supabase URL unavailable');return x};
 const getSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}};
 const randomNonce=()=>{const bytes=crypto.getRandomValues(new Uint8Array(32));return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
