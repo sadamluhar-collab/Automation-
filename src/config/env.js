@@ -16,3 +16,16 @@ export function youtubeConfig(){
   if(redirect.origin!==expected.origin||redirect.pathname!==expected.pathname)throw Object.assign(new Error('YOUTUBE_REDIRECT_URI must match APP_BASE_URL/api/youtube/callback'),{code:'YOUTUBE_OAUTH_CONFIG'});
   return e;
 }
+
+export function driveConfig(){
+  const e=env();
+  for(const k of ['WORKER_SECRET'])if(!e[k])throw Object.assign(new Error(`Missing environment variable: ${k}`),{code:'DRIVE_OAUTH_CONFIG'});
+  const clientId=e.DRIVE_CLIENT_ID||e.YOUTUBE_CLIENT_ID;
+  const clientSecret=e.DRIVE_CLIENT_SECRET||e.YOUTUBE_CLIENT_SECRET;
+  if(!clientId||!clientSecret)throw Object.assign(new Error('Missing Google Drive OAuth client credentials'),{code:'DRIVE_OAUTH_CONFIG'});
+  const redirect=e.DRIVE_REDIRECT_URI||`${e.APP_BASE_URL}/api/drive/callback`;
+  const expected=new URL(`${e.APP_BASE_URL}/api/drive/callback`);
+  const actual=new URL(redirect);
+  if(actual.origin!==expected.origin||actual.pathname!==expected.pathname)throw Object.assign(new Error('DRIVE_REDIRECT_URI must match APP_BASE_URL/api/drive/callback'),{code:'DRIVE_OAUTH_CONFIG'});
+  return {...e,DRIVE_CLIENT_ID:clientId,DRIVE_CLIENT_SECRET:clientSecret,DRIVE_REDIRECT_URI:redirect};
+}
