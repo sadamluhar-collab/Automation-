@@ -6,10 +6,10 @@ const userRow=async userId=>query('users',{params:`?id=eq.${encodeURIComponent(u
 
 export async function loadYouTubeCredential(channelId,userId){
   const user=await userRow(userId);if(!user)throw Object.assign(new Error('Workspace user not found'),{code:'AUTH',status:401});
-  const channels=await query('channels',{params:`?id=eq.${encodeURIComponent(channelId)}&tenant_id=eq.${encodeURIComponent(user.tenant_id)}&user_id=eq.${encodeURIComponent(userId)}&select=id,youtube_channel_id,name`});
-  const channel=channels?.[0];if(!channel)throw Object.assign(new Error('Channel not found in your workspace'),{code:'NOT_FOUND',status:404});
-  const rows=await query('channel_credentials',{params:`?channel_id=eq.${encodeURIComponent(channelId)}&select=*`});
-  const credential=rows?.[0];if(!credential)throw Object.assign(new Error('YouTube authorization is missing for this channel'),{code:'YOUTUBE_AUTH',status:401});
+  const rows=await query('channels',{params:`?id=eq.${encodeURIComponent(channelId)}&tenant_id=eq.${encodeURIComponent(user.tenant_id)}&user_id=eq.${encodeURIComponent(userId)}&select=id,youtube_channel_id,name`});
+  const channel=rows?.[0];if(!channel)throw Object.assign(new Error('Channel not found in your workspace'),{code:'NOT_FOUND',status:404});
+  const credentials=await query('channel_credentials',{params:`?channel_id=eq.${encodeURIComponent(channelId)}&select=*`});
+  const credential=credentials?.[0];if(!credential)throw Object.assign(new Error('YouTube authorization is missing for this channel'),{code:'YOUTUBE_AUTH',status:401});
   const expired=credential.expires_at&&new Date(credential.expires_at).getTime()<=Date.now()+60000;
   if(!expired&&credential.access_token)return {channel,accessToken:decrypt(credential.access_token),credential};
   if(!credential.refresh_token)throw Object.assign(new Error('YouTube access token expired; reconnect the channel'),{code:'YOUTUBE_REAUTH_REQUIRED',status:401});
