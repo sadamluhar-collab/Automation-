@@ -21,14 +21,24 @@ const proxy=async(req,res,url)=>{
   const r=await fetch(target,options);
   const body=await r.text(); res.statusCode=r.status; res.setHeader('content-type',r.headers.get('content-type')||'application/json');res.setHeader('cache-control','no-store');res.end(body);
 };
+const login=async(req,res)=>{
+  if(!API_BASE)return send(res,503,{success:false,error:{code:'API_BASE_MISSING',message:'Monitoring API is not configured'}});
+  const body=JSON.parse(await readBody(req)||'{}');
+  if(typeof body.email!=='string'||typeof body.password!=='string'||!body.email.trim()||!body.password)return send(res,400,{success:false,error:{code:'INVALID_LOGIN_INPUT',message:'Email and password are required'}});
+  const cfg=await fetch(`${API_BASE}/api/realtime-config`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok||!d.url||!d.anon_key)throw new Error('Supabase authentication is not configured');return d});
+  const r=await fetch(`${cfg.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:cfg.anon_key,'content-type':'application/json'},body:JSON.stringify({email:body.email.trim(),password:body.password})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.access_token)return send(res,r.status>=400&&r.status<500?r.status:502,{success:false,error:{code:'AUTH_LOGIN_FAILED',message:d.msg||d.error_description||d.message||'Sign in failed'}});
+  return send(res,200,{success:true,session:d});
+};
 const server=http.createServer(async(req,res)=>{
   try{
     const u=new URL(req.url,`http://${req.headers.host||'localhost'}`);
     if(u.pathname==='/health'){return send(res,200,{success:true,status:'ok',service:'monitor-ui'});}
     if(u.pathname.startsWith('/api/')){
       if(![...allowed].some(p=>u.pathname===p||u.pathname.startsWith(`${p}/`)))return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
-      if(u.pathname==='/api/auth/login'&&req.method!=='POST')return send(res,405,{success:false,error:{code:'METHOD_NOT_ALLOWED'}});
-      if(u.pathname!=='/api/auth/login'&&req.method!=='GET')return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
+      if(u.pathname==='/api/auth/login'){if(req.method!=='POST')return send(res,405,{success:false,error:{code:'METHOD_NOT_ALLOWED'}});return login(req,res)}
+      if(req.method!=='GET')return send(res,403,{success:false,error:{code:'MONITOR_READ_ONLY',message:'Monitoring UI is read-only'}});
       return proxy(req,res,`${u.pathname}${u.search}`);
     }
     if(req.method!=='GET')return send(res,405,{success:false,error:{code:'METHOD_NOT_ALLOWED'}});
