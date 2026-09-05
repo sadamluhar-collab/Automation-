@@ -17,26 +17,35 @@ function parseSchedule(value) {
   return date;
 }
 
+async function resolveProject(userId, projectId) {
+  if (projectId) {
+    const project = await projects.get(projectId, userId);
+    if (!project) throw error('PROJECT_NOT_FOUND', 'Project not found', 404);
+    return project;
+  }
+  const candidates = (await projects.list(userId)).filter(p => p.channel_id && ['ready','draft','completed','failed'].includes(p.status));
+  if (candidates.length === 1) return candidates[0];
+  if (!candidates.length) throw error('PROJECT_NOT_FOUND', 'No automation project is available', 404);
+  throw error('PROJECT_REQUIRED', 'Multiple automation projects are available; project_id is required', 409);
+}
+
 export async function dispatchWork({userId, projectId, prompt, scheduleAt, idempotencyKey, source = 'automation-handler'}) {
   if (!userId) throw error('AUTH_REQUIRED', 'Authentication is required', 401);
-  if (!projectId) throw error('PROJECT_NOT_FOUND', 'project_id is required', 400);
-
-  const project = await projects.get(projectId, userId);
-  if (!project) throw error('PROJECT_NOT_FOUND', 'Project not found', 404);
+  const project = await resolveProject(userId, projectId);
   if (!project.channel_id) throw error('CHANNEL_NOT_CONNECTED', 'Project has no connected YouTube channel', 409);
 
   const normalizedPrompt = clean(prompt) || DEFAULT_PROMPT;
   const scheduled = parseSchedule(scheduleAt);
-  const key = makeRunIdempotencyKey({projectId, prompt: normalizedPrompt, idempotencyKey});
+  const key = makeRunIdempotencyKey({projectId: project.id, prompt: normalizedPrompt, idempotencyKey});
 
   if (!scheduled || scheduled.getTime() <= Date.now() + 5000) {
-    return {mode: 'started', ...(await startDirectShort({userId, projectId, prompt: normalizedPrompt, idempotencyKey: key, source}))};
+    return {mode: 'started', ...(await startDirectShort({userId, projectId: project.id, prompt: normalizedPrompt, idempotencyKey: key, source}))};
   }
 
   const schedule = await schedules.create({
     userId,
     channelId: project.channel_id,
-    projectId,
+    projectId: project.id,
     publishAt: scheduled.toISOString(),
     timezone: 'UTC',
     scheduleType: 'once',
@@ -45,7 +54,7 @@ export async function dispatchWork({userId, projectId, prompt, scheduleAt, idemp
     name: `Short ${scheduled.toISOString()}`
   });
 
-  return {mode: 'scheduled', schedule, project_id: projectId, schedule_at: scheduled.toISOString()};
+  return {mode: 'scheduled', schedule, project_id: project.id, schedule_at: scheduled.toISOString()};
 }
 
 export function automationReadiness() {
