@@ -1,0 +1,95 @@
+-- Production hardening for backend-direct Shorts execution.
+-- Keep all worker/runtime access behind service_role; clients remain isolated by RLS.
+
+create unique index if not exists uq_pipeline_runs_one_active_per_project
+  on public.pipeline_runs(project_id)
+  where status in ('queued','running','paused');
+
+create index if not exists idx_automation_jobs_project_status
+  on public.automation_jobs(project_id,status,created_at desc);
+create index if not exists idx_automation_jobs_worker_lease
+  on public.automation_jobs(worker_id,lease_until)
+  where status='running';
+
+create table if not exists public.youtube_uploads (
+  id uuid primary key default gen_random_uuid(),
+  pipeline_run_id uuid not null unique references public.pipeline_runs(id) on delete cascade,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  channel_id uuid not null references public.channels(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  status text not null default 'pending',
+  youtube_video_id text,
+  session_url text,
+  bytes_total bigint,
+  bytes_uploaded bigint not null default 0,
+  artifact_checksum text,
+  error_code text,
+  error_message text,
+  started_at timestamptz,
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists uq_youtube_uploads_video_id
+  on public.youtube_uploads(youtube_video_id)
+  where youtube_video_id is not null;
+create index if not exists idx_youtube_uploads_project_status
+  on public.youtube_uploads(project_id,status,created_at desc);
+create index if not exists idx_youtube_uploads_channel_created
+  on public.youtube_uploads(channel_id,created_at desc);
+
+alter table public.pipeline_runs enable row level security;
+alter table public.pipeline_steps enable row level security;
+alter table public.youtube_uploads enable row level security;
+
+create policy pipeline_runs_user on public.pipeline_runs for all
+  using (project_id in (select id from public.projects where channel_id in (select id from public.channels where user_id=auth.uid())))
+  with check (project_id in (select id from public.projects where channel_id in (select id from public.channels where user_id=auth.uid())));
+create policy pipeline_steps_user on public.pipeline_steps for all
+  using (pipeline_run_id in (select id from public.pipeline_runs where project_id in (select id from public.projects where channel_id in (select id from public.channels where user_id=auth.uid()))))
+  with check (pipeline_run_id in (select id from public.pipeline_runs where project_id in (select id from public.projects where channel_id in (select id from public.channels where user_id=auth.uid()))));
+create policy youtube_uploads_user on public.youtube_uploads for all
+  using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+create policy content_history_user on public.content_history for select
+  using (channel_id in (select id from public.channels where user_id=auth.uid()));
+create policy short_generations_user on public.short_generations for select
+  using (channel_id in (select id from public.channels where user_id=auth.uid()));
+
+-- Retryable jobs must become claimable once their backoff expires.
+create or replace function public.claim_next_job(p_worker_id text)
+returns setof public.automation_jobs
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  j public.automation_jobs;
+begin
+  update public.automation_jobs
+  set status='queued', worker_id=null, lease_until=null, updated_at=now()
+  where status='running' and lease_until is not null and lease_until < now();
+
+  update public.automation_jobs
+  set status='queued', worker_id=null, lease_until=null, updated_at=now()
+  where status='retrying' and next_attempt_at is not null and next_attempt_at <= now();
+
+  update public.automation_jobs
+  set status='running', worker_id=p_worker_id, lease_until=now()+interval '120 seconds', updated_at=now()
+  where id=(
+    select id from public.automation_jobs
+    where status='queued' and (next_attempt_at is null or next_attempt_at <= now())
+    order by priority asc, created_at asc
+    for update skip locked limit 1
+  ) returning * into j;
+
+  if j.id is not null then return next j; end if;
+end;
+$$;
+revoke execute on function public.claim_next_job(text) from public,anon,authenticated;
+grant execute on function public.claim_next_job(text) to service_role;
+
+-- Include upload records in the existing authoritative change ledger.
+drop trigger if exists trg_record_data_change on public.youtube_uploads;
+create trigger trg_record_data_change after insert or update or delete on public.youtube_uploads
+for each row execute function public.record_data_change();
