@@ -7,7 +7,6 @@ import {enqueue} from '../queue/queue.service.js';
 import {loadYouTubeCredential} from '../auth/youtube-credential.service.js';
 
 const ACTIVE=new Set(['queued','running','paused']);
-const now=()=>new Date().toISOString();
 const clean=v=>String(v||'').trim();
 const error=(code,message,status=400)=>Object.assign(new Error(message),{code,status});
 
@@ -32,10 +31,7 @@ export async function startDirectShort({userId,projectId,prompt,idempotencyKey,s
   }
   const key=makeRunIdempotencyKey({projectId,prompt,idempotencyKey});
   const existing=await jobs.findByIdempotency(key,userId);
-  if(existing){
-    const runId=existing.input?.pipeline_run_id||null;
-    return {job:existing,pipeline_run_id:runId,project_id:project.id,reused:true};
-  }
+  if(existing)return {job:existing,pipeline_run_id:existing.input?.pipeline_run_id||null,project_id:project.id,reused:true};
   const active=(await jobs.list(userId,{projectId,limit:20})).find(j=>ACTIVE.has(j.status)&&j.job_type==='pipeline');
   if(active)throw error('PIPELINE_ALREADY_RUNNING','A pipeline run is already active for this project',409);
   const run=await pipeline.createRun({userId,projectId,state:{request:{prompt:clean(prompt)||'Create a unique 60-second YouTube Short',source}}});
@@ -43,7 +39,7 @@ export async function startDirectShort({userId,projectId,prompt,idempotencyKey,s
     const job=await enqueue({tenant_id:project.tenant_id,user_id:userId,channel_id:channel.id,project_id:project.id,job_type:'pipeline',current_step:'research',input:{project_id:project.id,pipeline_run_id:run.id,prompt:clean(prompt)||'Create a unique 60-second YouTube Short',config:project.config||{},source},priority:4,max_retries:3,idempotency_key:key});
     if(!job)throw error('PIPELINE_ENQUEUE_FAILED','Pipeline job could not be queued',500);
     await projects.update({userId,id:project.id,status:'running',config:project.config});
-    if(job.input?.pipeline_run_id!==run.id){await pipeline.updateRun(run.id,{status:'failed',current_step:'research',state:{error:'Idempotency request reused'}}).catch(()=>{});}
+    if(job.input?.pipeline_run_id!==run.id)await pipeline.updateRun(run.id,{status:'failed',current_step:'research',state:{error:'Idempotency request reused'}}).catch(()=>{});
     return {job,pipeline_run_id:job.input?.pipeline_run_id||run.id,project_id:project.id,reused:job.input?.pipeline_run_id!==run.id};
   }catch(e){
     const raced=await jobs.findByIdempotency(key,userId).catch(()=>null);
@@ -53,9 +49,9 @@ export async function startDirectShort({userId,projectId,prompt,idempotencyKey,s
   }
 }
 
-export async function getDirectRun({userId,runId}){
-  if(!userId)throw error('AUTH_REQUIRED','Authentication is required',401);
+export async function getDirectRun({userId,runId,projectId}){
+  if(!userId||!runId||!projectId)throw error('PROJECT_NOT_FOUND','Pipeline run not found',404);
   const run=await pipeline.get({userId,id:runId});
-  if(!run)throw error('PROJECT_NOT_FOUND','Pipeline run not found',404);
+  if(!run||String(run.project_id)!==String(projectId))throw error('PROJECT_NOT_FOUND','Pipeline run not found',404);
   return run;
 }
