@@ -4,39 +4,29 @@ import {channels} from '../../database/repositories/channel.repository.js';
 import {protectYouTubeCredential} from '../../auth/token.service.js';
 import {query} from '../../database/supabase.js';
 import {env} from '../../config/env.js';
+import {collectChannelSource} from '../../channels/channel-analysis.service.js';
 
 const send=(res,status,data)=>{res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.setHeader('cache-control','no-store');res.end(JSON.stringify(data))};
 const redirect=(res,url)=>{res.statusCode=302;res.setHeader('location',url);res.setHeader('cache-control','no-store');res.end()};
 const appUrl=()=>env().APP_BASE_URL.replace(/\/$/,'');
 const errorCode=e=>e?.code==='YOUTUBE_REAUTH_REQUIRED'||e?.status===401?'YOUTUBE_REAUTH_REQUIRED':e?.code==='DUPLICATE_CHANNEL'?'DUPLICATE_CHANNEL':'YOUTUBE_CONNECT';
 
-export function connect(req,res){
-  try{send(res,200,{success:true,authorization_url:authorizationUrl(createState(req.user.id))})}
-  catch(e){send(res,500,{success:false,error:{code:'YOUTUBE_OAUTH_CONFIG',message:e.message||'YouTube OAuth configuration failed'}})}
-}
+export function connect(req,res){try{send(res,200,{success:true,authorization_url:authorizationUrl(createState(req.user.id))})}catch(e){send(res,500,{success:false,error:{code:'YOUTUBE_OAUTH_CONFIG',message:e.message||'YouTube OAuth configuration failed'}})}}
 
 async function saveMemory(channelId,data){
   const existing=await query('channel_memory',{params:`?channel_id=eq.${encodeURIComponent(channelId)}&select=id,version`});
   const version=Number(existing?.[0]?.version||0)+1;
   const body={channel_id:channelId,data,version,updated_at:new Date().toISOString()};
-  const rows=existing?.[0]?
-    await query('channel_memory',{method:'PATCH',params:`?channel_id=eq.${encodeURIComponent(channelId)}&select=*`,headers:{Prefer:'return=representation'},body}):
-    await query('channel_memory',{method:'POST',params:'?select=*',headers:{Prefer:'return=representation'},body:{channel_id:channelId,data,version}});
-  const memory=rows?.[0];
-  if(!memory?.id)throw new Error('Channel memory could not be saved');
+  const rows=existing?.[0]?await query('channel_memory',{method:'PATCH',params:`?channel_id=eq.${encodeURIComponent(channelId)}&select=*`,headers:{Prefer:'return=representation'},body}):await query('channel_memory',{method:'POST',params:'?select=*',headers:{Prefer:'return=representation'},body:{channel_id:channelId,data,version}});
+  const memory=rows?.[0];if(!memory?.id)throw new Error('Channel memory could not be saved');
   const versionRows=await query('channel_memory_versions',{method:'POST',params:'?on_conflict=channel_id,version&select=id',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:{channel_id:channelId,version,data,status:'active'}});
   if(!versionRows?.[0]?.id)throw new Error('Channel memory history could not be saved');
   return memory;
 }
 
-async function markChannel(id,status,lastError=null){
-  await query('channels',{method:'PATCH',params:`?id=eq.${encodeURIComponent(id)}&select=id,status`,headers:{Prefer:'return=representation'},body:{status,last_error:lastError,analyzed_at:status==='active'?new Date().toISOString():null,updated_at:new Date().toISOString()}});
-}
+async function markChannel(id,status,lastError=null){await query('channels',{method:'PATCH',params:`?id=eq.${encodeURIComponent(id)}&select=id,status`,headers:{Prefer:'return=representation'},body:{status,last_error:lastError,analyzed_at:status==='active'?new Date().toISOString():null,updated_at:new Date().toISOString()}})}
 
-function channelRow(item){
-  const s=item?.snippet||{},stats=item?.statistics||{},brand=item?.brandingSettings||{};
-  return {youtube_channel_id:item?.id,youtube_handle:s.customUrl||null,name:s.title||null,description:s.description||null,profile_image:s.thumbnails?.high?.url||s.thumbnails?.default?.url||null,banner:brand.image?.bannerExternalUrl||null,subscribers:Number(stats.subscriberCount||0),total_views:Number(stats.viewCount||0),video_count:Number(stats.videoCount||0),country:s.country||null};
-}
+function channelRow(item){const s=item?.snippet||{},stats=item?.statistics||{},brand=item?.brandingSettings||{};return {youtube_channel_id:item?.id,youtube_handle:s.customUrl||null,name:s.title||null,description:s.description||null,profile_image:s.thumbnails?.high?.url||s.thumbnails?.default?.url||null,banner:brand.image?.bannerExternalUrl||null,subscribers:Number(stats.subscriberCount||0),total_views:Number(stats.viewCount||0),video_count:Number(stats.videoCount||0),country:s.country||null}}
 
 export async function callback(req,res){
   let state;
@@ -48,10 +38,12 @@ export async function callback(req,res){
     const data=await syncChannel(token.access_token);
     const item=data?.items?.[0];if(!item?.id)throw Object.assign(new Error('No YouTube channel was returned for this Google account'),{code:'NO_CHANNEL'});
     const saved=await channels.upsert({userId:state.sub,email:'',channel:channelRow(item),credential:protectYouTubeCredential({access_token:token.access_token,refresh_token:token.refresh_token,expires_at:new Date(Date.now()+Number(token.expires_in||3600)*1000).toISOString(),scope:token.scope,token_type:token.token_type})});
-    const source=await (await import('../../channels/channel-analysis.service.js')).collectChannelSource(saved.id,state.sub);
-    await saveMemory(saved.id,{status:'analyzed',analysis_status:'complete',source:'youtube_data_api',analyzed_at:new Date().toISOString(),channel:source.channel,summary:source.summary,videos:source.videos,content_rules:{avoid_repeating_titles:true,avoid_repeating_topics:true,prefer_recent_patterns:true}});
+    await markChannel(saved.id,'analyzing');
+    const source=await collectChannelSource(saved.id,state.sub);
+    const memory=await saveMemory(saved.id,{status:'analyzed',analysis_status:'complete',source:'youtube_data_api',analyzed_at:new Date().toISOString(),channel:source.channel,summary:source.summary,analysis:source.analysis,videos:source.videos,content_rules:{avoid_repeating_titles:true,avoid_repeating_topics:true,prefer_recent_patterns:true}});
     await markChannel(saved.id,'active');
     redirect(res,`${appUrl()}/?youtube=connected&channel=${encodeURIComponent(saved.id)}`);
+    return memory;
   }catch(e){
     console.error('YouTube OAuth callback failed',e);
     if(state?.sub){try{const rows=await query('channels',{params:`?user_id=eq.${encodeURIComponent(state.sub)}&select=id&order=updated_at.desc&limit=1`});if(rows?.[0]?.id)await markChannel(rows[0].id,'error',e.message||'YouTube connection failed')}catch{}}
@@ -66,8 +58,9 @@ export async function sync(req,res){
     const {data}=await syncStoredChannel(channelId,req.user.id);
     const item=data?.items?.[0];if(!item?.id)throw Object.assign(new Error('YouTube channel not found'),{code:'NO_CHANNEL',status:404});
     const saved=await channels.upsert({userId:req.user.id,channel:channelRow(item),credential:null});
-    const source=await (await import('../../channels/channel-analysis.service.js')).collectChannelSource(saved.id,req.user.id);
-    const memory=await saveMemory(saved.id,{status:'analyzed',analysis_status:'complete',source:'youtube_data_api',analyzed_at:new Date().toISOString(),channel:source.channel,summary:source.summary,videos:source.videos,content_rules:{avoid_repeating_titles:true,avoid_repeating_topics:true,prefer_recent_patterns:true}});
+    await markChannel(saved.id,'analyzing');
+    const source=await collectChannelSource(saved.id,req.user.id);
+    const memory=await saveMemory(saved.id,{status:'analyzed',analysis_status:'complete',source:'youtube_data_api',analyzed_at:new Date().toISOString(),channel:source.channel,summary:source.summary,analysis:source.analysis,videos:source.videos,content_rules:{avoid_repeating_titles:true,avoid_repeating_topics:true,prefer_recent_patterns:true}});
     await markChannel(saved.id,'active');
     send(res,200,{success:true,data:{channel:saved,memory}});
   }catch(e){send(res,e.status||400,{success:false,error:{code:e.code||'YOUTUBE_SYNC',message:e.message||'YouTube sync failed'}})}
