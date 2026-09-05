@@ -20,6 +20,7 @@ import * as artifacts from './api/routes/artifacts.js';
 import * as memory from './api/routes/memory.js';
 import * as settings from './api/routes/settings.js';
 import * as youtube from './api/routes/youtube.js';
+import * as drive from './api/routes/drive.js';
 import * as schedules from './api/routes/schedules.js';
 import * as browserControl from './api/routes/browser-control.js';
 import * as automation from './api/routes/automation.js';
@@ -76,7 +77,7 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname.startsWith('/api/schedules/')&&u.pathname.endsWith('/run-now')&&req.method==='POST'){req.params={id:u.pathname.split('/')[3]};return auth(req,res,()=>schedules.runNow(req,res))}
     if(u.pathname.startsWith('/api/schedules/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};schedules.get(req,res)});
     if(u.pathname.startsWith('/api/schedules/')&&req.method==='PATCH'){req.body=await json(req);return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};schedules.update(req,res)})}
-    if(u.pathname.startsWith('/api/schedules/')&&req.method==='DELETE')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};schedules.remove(req,res)});
+    if(u.pathname.startsWith('/api/schedules/')&&req.method==='DELETE')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[3]};schedules.remove(req,res)})
     if(u.pathname==='/api/analytics/channels'&&req.method==='GET')return auth(req,res,()=>analytics.channels(req,res));
     if(u.pathname==='/api/analytics'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return auth(req,res,()=>analytics.list(req,res))}
     if(u.pathname==='/api/artifacts'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return auth(req,res,()=>artifacts.list(req,res))}
@@ -92,6 +93,9 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==='/api/youtube/connect'&&req.method==='GET')return auth(req,res,()=>youtube.connect(req,res));
     if(u.pathname==='/api/youtube/callback'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return youtube.callback(req,res)}
     if(u.pathname==='/api/youtube/sync'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>youtube.sync(req,res))}
+    if(u.pathname==='/api/drive/connect'&&req.method==='GET')return auth(req,res,()=>drive.connect(req,res));
+    if(u.pathname==='/api/drive/status'&&req.method==='GET')return auth(req,res,()=>drive.status(req,res));
+    if(u.pathname==='/api/drive/callback'&&req.method==='GET'){req.query=Object.fromEntries(u.searchParams);return drive.callback(req,res)}
     return send(res,404,{success:false,error:{code:'NOT_FOUND',message:'Route not found',request_id:req.requestId}})
   }catch(err){console.error(err);send(res,err.status||500,{success:false,error:{code:err.code||'INTERNAL_ERROR',message:err.status?err.message:'Internal error',request_id:req.requestId,retryable:Boolean(err.retryable)}})}
 });
