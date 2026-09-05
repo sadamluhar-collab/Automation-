@@ -8,6 +8,11 @@ const owned=async(id,userId)=>{
 export const jobs={
   create:(x)=>query('automation_jobs',{method:'POST',params:'?select=*',body:x,headers:{Prefer:'return=representation'}}),
   get:(id,userId)=>owned(id,userId),
+  findByIdempotency:async(key,userId)=>{
+    if(!key)return null;
+    const rows=await query('automation_jobs',{params:`?idempotency_key=eq.${encodeURIComponent(key)}&user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`});
+    return rows[0]||null;
+  },
   list:async(userId,{status,projectId,limit=100}={})=>{
     const filters=[`user_id=eq.${encodeURIComponent(userId)}`];
     if(status)filters.push(`status=eq.${encodeURIComponent(status)}`);
