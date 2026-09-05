@@ -1,0 +1,4 @@
+import {readdir,readFile} from 'node:fs/promises';import {join} from 'node:path';import {spawn} from 'node:child_process';
+async function files(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=join(dir,e.name);if(e.isDirectory()&&!['node_modules','.git'].includes(e.name))out.push(...await files(p));else if(e.isFile()&&p.endsWith('.js'))out.push(p)}return out}
+const js=await files(process.cwd());for(const file of js){await new Promise((resolve,reject)=>{const p=spawn(process.execPath,['--check',file],{stdio:'inherit'});p.on('exit',code=>code===0?resolve():reject(new Error(`Syntax check failed: ${file}`)))})}
+const packageJson=JSON.parse(await readFile('package.json','utf8'));if(packageJson.engines?.node&&Number(process.versions.node.split('.')[0])<20)throw new Error('Node 20+ required');console.log(`Typecheck/syntax verification passed for ${js.length} JavaScript files`);

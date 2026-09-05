@@ -1,0 +1,12 @@
+import {createHash} from 'node:crypto';
+const STOP=new Set('the and for with from this that your you are how what why when where a an to of in on is it my me we our at by as or recipe recipes easy best make making'.split(' '));
+const word=v=>{let x=String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');if(x.endsWith('ies')&&x.length>4)x=x.slice(0,-3)+'y';else if(x.endsWith('s')&&x.length>4)x=x.slice(0,-1);return x};
+const normalize=v=>String(v||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+const tokens=v=>new Set(normalize(v).split(' ').map(word).filter(x=>x.length>=3&&!STOP.has(x)));
+const jaccard=(a,b)=>{const A=tokens(a),B=tokens(b);if(!A.size&&!B.size)return 1;let i=0;for(const x of A)if(B.has(x))i++;return i/(A.size+B.size-i||1)};
+const canonical=v=>[...tokens(v)].sort().join('|');
+export function contentFingerprint(item){const source=[item?.topic,item?.recipe_concept,item?.title,item?.description,item?.keywords?.join(' ')].map(normalize).join('|');return createHash('sha256').update(source).digest('hex')}
+export function recipeSignature(item){return canonical([item?.recipe_concept,item?.ingredients,item?.title,item?.description].flat().join(' '))}
+export function similarity(candidate,existing){const title=jaccard(candidate?.title,existing?.title),topic=jaccard(candidate?.topic,existing?.topic),recipe=jaccard(recipeSignature(candidate),recipeSignature(existing)),concept=jaccard(candidate?.recipe_concept,existing?.recipe_concept);return Math.max(title*.3+topic*.25+recipe*.3+concept*.15,recipe*.8,concept*.85)}
+export function findSimilar(candidate,history=[],threshold=.72){return history.map(x=>({...x,similarity:similarity(candidate,x)})).filter(x=>x.similarity>=threshold).sort((a,b)=>b.similarity-a.similarity)[0]||null}
+export function normalizeHistoryItem(video){const item={youtube_video_id:video?.id||video?.youtube_video_id||null,title:String(video?.title||'').trim(),description:String(video?.description||'').trim(),topic:String(video?.topic||video?.title||'').trim(),recipe_concept:String(video?.recipe_concept||'').trim(),keywords:Array.isArray(video?.keywords)?video.keywords.slice(0,50):Array.isArray(video?.tags)?video.tags.slice(0,50):[],published_at:video?.published_at||null,duration_seconds:Number(video?.duration_seconds||0),content_type:Number(video?.duration_seconds||0)<=61?'short':'video'};return {...item,content_fingerprint:contentFingerprint(item)}}

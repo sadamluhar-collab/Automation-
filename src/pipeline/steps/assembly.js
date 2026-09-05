@@ -1,76 +1,21 @@
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
-import {mkdtemp,writeFile,rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
-import {randomUUID} from 'node:crypto';
-
+import {execFile} from 'node:child_process';import {promisify} from 'node:util';import {mkdtemp,writeFile,rm,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {createHash} from 'node:crypto';import {query} from '../../database/supabase.js';import {uploadBytes} from '../../storage/storage.service.js';
 const exec=promisify(execFile);
-
-function urlsFrom(value,out=[]){
-  if(!value)return out;
-  if(typeof value==='string'&&/^https?:\/\//i.test(value))out.push(value);
-  else if(Array.isArray(value))for(const item of value)urlsFrom(item,out);
-  else if(typeof value==='object')for(const [key,item] of Object.entries(value)){
-    if(['url','video_url','videoUrl','download_url','downloadUrl'].includes(key)&&typeof item==='string'&&/^https?:\/\//i.test(item))out.push(item);
-    else if(typeof item==='object'||Array.isArray(item))urlsFrom(item,out);
-  }
-  return [...new Set(out)];
-}
-
-async function download(url,path){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),120000);
-  try{
-    const response=await fetch(url,{signal:controller.signal,redirect:'follow'});
-    if(!response.ok)throw new Error(`Clip download failed HTTP ${response.status}`);
-    const buffer=Buffer.from(await response.arrayBuffer());
-    if(!buffer.length)throw new Error('Clip download returned an empty file');
-    await writeFile(path,buffer);
-  }catch(error){
-    if(error?.name==='AbortError')throw new Error('Clip download timed out');
-    throw error;
-  }finally{clearTimeout(timer)}
-}
-
-async function hasAudio(ffmpeg,input){
-  try{
-    await exec(ffmpeg,['-hide_banner','-loglevel','error','-i',input,'-map','0:a:0','-f','null','-']);
-    return true;
-  }catch{return false}
-}
-
-async function normalize(ffmpeg,input,output,audio){
-  const args=['-y','-hide_banner','-loglevel','error','-i',input];
-  if(!audio)args.push('-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000');
-  args.push('-map','0:v:0');
-  args.push('-map',audio?'0:a:0':'1:a:0');
-  args.push('-vf','scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p','-r','30','-c:v','libx264','-preset','veryfast','-crf','20','-c:a','aac','-ar','48000','-ac','2','-shortest',output);
-  await exec(ffmpeg,args);
-}
-
+function urlsFrom(value,out=[]){if(!value)return out;if(typeof value==='string'&&/^https?:\/\//i.test(value))out.push(value);else if(Array.isArray(value))for(const item of value)urlsFrom(item,out);else if(typeof value==='object')for(const [key,item] of Object.entries(value)){if(['url','video_url','videoUrl','download_url','downloadUrl'].includes(key)&&typeof item==='string'&&/^https?:\/\//i.test(item))out.push(item);else if(typeof item==='object'||Array.isArray(item))urlsFrom(item,out)}return [...new Set(out)]}
+async function download(url,path){const c=new AbortController(),t=setTimeout(()=>c.abort(),120000);try{const r=await fetch(url,{signal:c.signal,redirect:'follow'});if(!r.ok)throw new Error(`Clip download failed HTTP ${r.status}`);const b=Buffer.from(await r.arrayBuffer());if(!b.length)throw new Error('Clip download returned an empty file');await writeFile(path,b)}catch(e){if(e?.name==='AbortError')throw new Error('Clip download timed out');throw e}finally{clearTimeout(t)}}
+async function hasAudio(ffmpeg,input){try{await exec(ffmpeg,['-hide_banner','-loglevel','error','-i',input,'-map','0:a:0','-f','null','-']);return true}catch{return false}}
+async function normalize(ffmpeg,input,output,audio){const args=['-y','-hide_banner','-loglevel','error','-i',input];if(!audio)args.push('-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000');args.push('-map','0:v:0','-map',audio?'0:a:0':'1:a:0','-vf','scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,format=yuv420p','-r','30','-c:v','libx264','-preset','veryfast','-crf','20','-c:a','aac','-ar','48000','-ac','2','-shortest',output];await exec(ffmpeg,args)}
 export async function run(ctx){
-  const ffmpeg=ctx.ffmpeg||'ffmpeg';
-  const configuredInput=ctx.input||{};
-  const clipUrls=urlsFrom(ctx.state?.clips?.result);
-  if(!clipUrls.length)throw Object.assign(new Error('Assembly requires generated video clips with downloadable URLs'),{code:'ASSEMBLY_INPUT_MISSING'});
-
-  const root=await mkdtemp(join(tmpdir(),'automation-assembly-'));
-  try{
-    const sources=[];
-    for(let i=0;i<clipUrls.length;i++){
-      const raw=join(root,`source-${i}.mp4`);
-      const normalized=join(root,`clip-${i}.mp4`);
-      await download(clipUrls[i],raw);
-      await normalize(ffmpeg,raw,normalized,await hasAudio(ffmpeg,raw));
-      sources.push(normalized);
-    }
-    const listFile=join(root,'clips.txt');
-    await writeFile(listFile,sources.map(file=>`file '${file.replaceAll("'","'\\''")}'`).join('\n')+'\n','utf8');
-    const output=String(configuredInput.output||join(tmpdir(),`automation-${ctx.job?.id||randomUUID()}.mp4`));
-    await exec(ffmpeg,['-y','-hide_banner','-loglevel','error','-f','concat','-safe','0','-i',listFile,'-c','copy','-movflags','+faststart',output]);
-    return {path:output,listFile,clipCount:sources.length,source:'generated-clips'};
-  }finally{
-    await rm(root,{recursive:true,force:true}).catch(()=>{});
-  }
+ const ffmpeg=ctx.ffmpeg||'ffmpeg',configured=ctx.input||{},clipUrls=urlsFrom(ctx.state?.clips?.result);if(!clipUrls.length)throw Object.assign(new Error('Assembly requires generated video clips with downloadable URLs'),{code:'ASSEMBLY_INPUT_MISSING'});
+ const root=await mkdtemp(join(tmpdir(),'automation-assembly-'));try{
+  const sources=[];for(let i=0;i<clipUrls.length;i++){const raw=join(root,`source-${i}.mp4`),normalized=join(root,`clip-${i}.mp4`);await download(clipUrls[i],raw);await normalize(ffmpeg,raw,normalized,await hasAudio(ffmpeg,raw));sources.push(normalized)}
+  const listFile=join(root,'clips.txt');await writeFile(listFile,sources.map(f=>`file '${f.replaceAll("'","'\\''")}'`).join('\n')+'\n','utf8');
+  const output=join(root,'final.mp4');await exec(ffmpeg,['-y','-hide_banner','-loglevel','error','-f','concat','-safe','0','-i',listFile,'-c','copy','-movflags','+faststart',output]);
+  const bytes=await readFile(output),checksum=createHash('sha256').update(bytes).digest('hex');
+  const userRows=await query('users',{params:`?id=eq.${encodeURIComponent(ctx.job.user_id)}&select=tenant_id`});const tenantId=userRows?.[0]?.tenant_id;if(!tenantId)throw new Error('Workspace tenant not found');
+  const bucket='automation-artifacts',path=`${tenantId}/${ctx.job.project_id||'unassigned'}/${ctx.job.id}/final.mp4`;await uploadBytes(bucket,path,bytes,'video/mp4');
+  const existing=await query('artifacts',{params:`?project_id=eq.${encodeURIComponent(ctx.job.project_id||'')}&storage_path=eq.${encodeURIComponent(path)}&select=id,version`}).catch(()=>[]);
+  let artifact=existing?.[0];if(!artifact){const created=await query('artifacts',{method:'POST',params:'?select=*',headers:{Prefer:'return=representation'},body:{tenant_id:tenantId,project_id:ctx.job.project_id||null,type:'short-video',storage_bucket:bucket,storage_path:path,version:1,checksum,size:bytes.length,status:'active'}});artifact=created?.[0];if(artifact?.id)await query('artifact_versions',{method:'POST',params:'?select=id',headers:{Prefer:'return=representation'},body:{artifact_id:artifact.id,version:1,storage_path:path,checksum,size:bytes.length}}).catch(()=>{})}
+  if(!artifact?.id)throw new Error('Final video artifact record could not be saved');
+  return {artifact_id:artifact.id,bucket,path,size:bytes.length,checksum,clipCount:sources.length,source:'generated-clips'};
+ }finally{await rm(root,{recursive:true,force:true}).catch(()=>{})}
 }

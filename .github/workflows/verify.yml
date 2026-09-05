@@ -10,7 +10,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
-      - run: node scripts/verify-production.js
-      - run: node --check src/server.js
-      - run: node --check src/mcp/automation-mcp.js
+      - run: npm run lint
+      - run: npm run smoke

@@ -1,0 +1,1 @@
+alter table public.content_history drop constraint if exists content_history_content_fingerprint_key;

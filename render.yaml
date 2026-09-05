@@ -15,13 +15,13 @@ services:
         sync: false
       - key: WORKER_SECRET
         sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
       - key: YOUTUBE_CLIENT_ID
         sync: false
       - key: YOUTUBE_CLIENT_SECRET
         sync: false
       - key: YOUTUBE_REDIRECT_URI
-        sync: false
-      - key: ENCRYPTION_KEY
         sync: false
       - key: APP_BASE_URL
         sync: false
@@ -36,4 +36,14 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: WORKER_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: YOUTUBE_REDIRECT_URI
+        sync: false
+      - key: APP_BASE_URL
         sync: false
