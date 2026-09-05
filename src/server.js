@@ -48,7 +48,7 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname.startsWith('/api/browser/commands/')&&u.pathname.endsWith('/complete')&&req.method==='POST'){req.params={id:u.pathname.split('/')[4]};req.body=await json(req);return workerAuth(req,res,()=>browserControl.complete(req,res))}
     if(u.pathname.startsWith('/api/browser/commands/')&&req.method==='GET')return auth(req,res,()=>{req.params={id:u.pathname.split('/')[4]};browserControl.status(req,res)});
     if(u.pathname==='/api/automation/dispatch'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>automation.dispatch(req,res))}
-    if(u.pathname.startsWith('/api/automation/projects/')&&u.pathname.endsWith('/runs/')&&req.method==='GET')return auth(req,res,()=>automation.status(req,res));
+    if(u.pathname.startsWith('/api/automation/projects/')&&req.method==='GET'){const parts=u.pathname.split('/');if(parts.length===6&&parts[5]){req.params={projectId:parts[3],runId:parts[5]};return auth(req,res,()=>automation.status(req,res))}}
     if(u.pathname==='/api/channels'&&req.method==='GET')return auth(req,res,()=>channels.routes(req,res));
     if(u.pathname==='/api/projects'&&req.method==='GET')return auth(req,res,()=>projects.list(req,res));
     if(u.pathname==='/api/projects'&&req.method==='POST'){req.body=await json(req);return auth(req,res,()=>projects.create(req,res))}
