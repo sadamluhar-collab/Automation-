@@ -1,4 +1,4 @@
-import {authorizationUrl,exchangeDriveCode,createDriveState,verifyDriveState} from '../../auth/drive.oauth.js';
+import {driveAuthorizationUrl,exchangeDriveCode,createDriveState,verifyDriveState} from '../../auth/drive.oauth.js';
 import {query} from '../../database/supabase.js';
 import {encrypt} from '../../security/encryption.js';
 import {env} from '../../config/env.js';
@@ -8,7 +8,7 @@ const redirect=(res,url)=>{res.statusCode=302;res.setHeader('location',url);res.
 const appUrl=()=>env().APP_BASE_URL.replace(/\/$/,'');
 
 export function connect(req,res){
-  try{send(res,200,{success:true,authorization_url:authorizationUrl(createDriveState(req.user.id))})}
+  try{send(res,200,{success:true,authorization_url:driveAuthorizationUrl(createDriveState(req.user.id))})}
   catch(e){send(res,e.status||500,{success:false,error:{code:e.code||'DRIVE_OAUTH_CONFIG',message:e.message||'Google Drive OAuth configuration failed'}})}
 }
 
