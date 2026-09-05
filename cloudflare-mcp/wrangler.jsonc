@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "youtube-automation-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "6a646f6b06eb4c68a7aa9ad6f3d1cba"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_OBJECT",
+        "class_name": "YouTubeAutomationMcp"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["YouTubeAutomationMcp"]
+    }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://hnaieswtilpknmlxcfne.supabase.co",
+    "RENDER_API_BASE_URL": "https://automation-api-m16m.onrender.com"
+  }
+}
