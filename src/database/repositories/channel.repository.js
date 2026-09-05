@@ -1,4 +1,4 @@
-import {query} from '../database/supabase.js';
+import {query} from '../supabase.js';
 
 const userRow=async userId=>query('users',{params:`?id=eq.${encodeURIComponent(userId)}&select=id,tenant_id`}).then(x=>x[0]||null);
 const ensureMemory=async channelId=>{
