@@ -1,7 +1,4 @@
-import OAuthProvider, {
-  OAuthError,
-  type OAuthHelpers,
-} from "@cloudflare/workers-oauth-provider";
+import OAuthProvider, { type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -55,7 +52,7 @@ async function renderApi(env: Env, props: AuthProps, path: string, method = "GET
         ? String((data as { error?: { message?: string } }).error?.message ?? `Render API ${response.status}`)
         : `Render API ${response.status}`;
     if (response.status === 401) {
-      throw new Error("Render session expired. Reconnect the Cloudflare MCP server to refresh authorization.");
+      throw new Error("Render session expired. Reconnect the Cloudflare MCP server.");
     }
     throw new Error(message);
   }
@@ -85,28 +82,6 @@ async function supabasePasswordLogin(env: Env, email: string, password: string) 
   } satisfies AuthProps;
 }
 
-async function supabaseRefresh(env: Env, refreshToken: string) {
-  const response = await fetch(`${env.SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-    method: "POST",
-    headers: {
-      apikey: env.SUPABASE_ANON_KEY,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
-  const data = (await response.json().catch(() => ({}))) as Record<string, any>;
-  if (!response.ok || !data.access_token || !data.refresh_token) {
-    throw new OAuthError("invalid_grant", {
-      description: "The YouTube Automation account session expired. Reconnect the MCP server.",
-    });
-  }
-  return {
-    accessToken: String(data.access_token),
-    refreshToken: String(data.refresh_token),
-    expiresIn: Number(data.expires_in || 3600),
-  };
-}
-
 function text(value: unknown) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -122,7 +97,7 @@ export class YouTubeAutomationMcp extends McpAgent<Env, Record<string, never>, A
   async init() {
     const props = this.props;
 
-    this.server.tool("whoami", "Show the authenticated YouTube Automation account and verify backend access.", {}, async () => {
+    this.server.tool("whoami", "Show the authenticated automation account and verify backend access.", {}, async () => {
       const channels = await renderApi(this.env, props, "/api/channels");
       const projects = await renderApi(this.env, props, "/api/projects");
       return text({ account: props.email, user_id: props.userId, channels, projects });
@@ -132,7 +107,7 @@ export class YouTubeAutomationMcp extends McpAgent<Env, Record<string, never>, A
       return text(await renderApi(this.env, props, "/api/channels"));
     });
 
-    this.server.tool("list_projects", "List YouTube Automation projects for the authenticated account.", {}, async () => {
+    this.server.tool("list_projects", "List automation projects for the authenticated account.", {}, async () => {
       return text(await renderApi(this.env, props, "/api/projects"));
     });
 
@@ -155,7 +130,7 @@ export class YouTubeAutomationMcp extends McpAgent<Env, Record<string, never>, A
 
     this.server.tool(
       "delete_project",
-      "Delete an owned project. The backend blocks deletion when active work exists.",
+      "Delete an owned project. Backend blocks deletion when active work exists.",
       { project_id: z.string().uuid() },
       async ({ project_id }) => text(await renderApi(this.env, props, `/api/projects/${encodeURIComponent(project_id)}`, "DELETE")),
     );
@@ -205,7 +180,7 @@ export class YouTubeAutomationMcp extends McpAgent<Env, Record<string, never>, A
 
 function loginPage(query: string, error?: string) {
   const message = error ? `<p style="color:#b91c1c">${error}</p>` : "";
-  return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>YouTube Automation MCP</title></head><body style="font-family:system-ui;max-width:420px;margin:60px auto;padding:20px"><h2>Authorize YouTube Automation</h2><p>Sign in with the YouTube Automation account that owns your connected channel.</p>${message}<form method="post" action="/authorize?${query}"><label>Email</label><input name="email" type="email" required style="display:block;width:100%;margin:8px 0 16px;padding:10px"><label>Password</label><input name="password" type="password" required autocomplete="current-password" style="display:block;width:100%;margin:8px 0 16px;padding:10px"><button type="submit" style="padding:10px 16px">Authorize</button></form></body></html>`, {
+  return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>YouTube Automation MCP</title></head><body style="font-family:system-ui;max-width:420px;margin:60px auto;padding:20px"><h2>Authorize YouTube Automation</h2><p>Sign in with the automation account that owns your connected channel.</p>${message}<form method="post" action="/authorize?${query}"><label>Email</label><input name="email" type="email" required style="display:block;width:100%;margin:8px 0 16px;padding:10px"><label>Password</label><input name="password" type="password" required autocomplete="current-password" style="display:block;width:100%;margin:8px 0 16px;padding:10px"><button type="submit" style="padding:10px 16px">Authorize</button></form></body></html>`, {
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });
 }
@@ -264,21 +239,4 @@ export default new OAuthProvider<Env>({
   defaultHandler,
   scopesSupported: ["automation"],
   allowPlainPKCE: false,
-  resourceMetadata: {
-    resource: "https://youtube-automation-mcp.workers.dev/mcp",
-    authorization_servers: ["https://youtube-automation-mcp.workers.dev"],
-    scopes_supported: ["automation"],
-    resource_name: "YouTube Automation MCP",
-  },
-  tokenExchangeCallback: async ({ grantType, props }) => {
-    if (grantType === "refresh_token") {
-      const refreshed = await supabaseRefresh((globalThis as any).__env as Env, props.refreshToken);
-      return {
-        newProps: { ...props, ...refreshed },
-        accessTokenProps: { ...props, ...refreshed },
-        accessTokenTTL: Math.max(60, refreshed.expiresIn - 30),
-      };
-    }
-    return { accessTokenTTL: Math.max(60, Number(props.expiresIn || 3600) - 30) };
-  },
 });
