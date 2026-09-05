@@ -27,12 +27,14 @@ const tools=[
 async function api(req,path,method='GET',body){const a=req.headers.authorization;if(!a?.startsWith('Bearer '))throw Object.assign(new Error('Authentication required'),{status:401});const r=await fetch(`http://127.0.0.1:${process.env.PORT||10000}${path}`,{method,headers:{authorization:a,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const t=await r.text();let d;try{d=JSON.parse(t)}catch{d={raw:t}};if(!r.ok)throw Object.assign(new Error(d?.error?.message||`API ${r.status}`),{status:r.status});return d}
 
 async function oauthAuthorize(req,res,u){
-  const p=u.searchParams;const client=clients.get(p.get('client_id'));const redirect=p.get('redirect_uri');
-  if(!client||!redirect||!allowedRedirect(redirect)||!client.redirect_uris.includes(redirect))return send(res,400,{error:'invalid_request',error_description:'Invalid OAuth client or redirect_uri'});
+  const p=u.searchParams;const clientId=p.get('client_id'),redirect=p.get('redirect_uri');const client=clients.get(clientId);
+  if(!clientId||!redirect||!allowedRedirect(redirect))return send(res,400,{error:'invalid_request',error_description:'Invalid OAuth client or redirect_uri'});
+  if(client&&!client.redirect_uris.includes(redirect))return send(res,400,{error:'invalid_request',error_description:'Invalid OAuth client or redirect_uri'});
   if(p.get('response_type')!=='code')return send(res,400,{error:'unsupported_response_type'});
   if(p.get('code_challenge_method')!=='S256'||!p.get('code_challenge'))return send(res,400,{error:'invalid_request',error_description:'PKCE S256 is required'});
   const supabaseUrl=process.env.SUPABASE_URL,anon=process.env.SUPABASE_ANON_KEY;if(!supabaseUrl||!anon)return send(res,500,{error:'server_error',error_description:'Supabase authentication is not configured'});
-  const flow=token(),v=verifier();googleFlows.set(flow,{client_id:p.get('client_id'),redirect_uri:redirect,chatgpt_challenge:p.get('code_challenge'),code_verifier:v,created_at:Date.now()});
+  if(!client)clients.set(clientId,{redirect_uris:[redirect],client_name:'ChatGPT MCP'});
+  const flow=token(),v=verifier();googleFlows.set(flow,{client_id:clientId,redirect_uri:redirect,chatgpt_challenge:p.get('code_challenge'),code_verifier:v,created_at:Date.now()});
   setTimeout(()=>googleFlows.delete(flow),10*60*1000);
   const callback=`${base()}/oauth/google/callback`;
   const q=new URLSearchParams({provider:'google',redirect_to:callback,code_challenge:challenge(v),code_challenge_method:'S256',state:flow});
