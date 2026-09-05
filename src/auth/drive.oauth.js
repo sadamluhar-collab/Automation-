@@ -22,22 +22,22 @@ export function verifyDriveState(state){
   return data;
 }
 export function driveAuthorizationUrl(state){
-  const e=env();driveConfig();
-  const q=new URLSearchParams({client_id:e.DRIVE_CLIENT_ID||e.YOUTUBE_CLIENT_ID,redirect_uri:e.DRIVE_REDIRECT_URI||`${e.APP_BASE_URL}/api/drive/callback`,response_type:'code',scope,access_type:'offline',prompt:'consent',include_granted_scopes:'true'});
+  const e=driveConfig();
+  const q=new URLSearchParams({client_id:e.DRIVE_CLIENT_ID,redirect_uri:e.DRIVE_REDIRECT_URI,response_type:'code',scope,access_type:'offline',prompt:'consent'});
   q.set('state',state);
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
 }
 export async function exchangeDriveCode(code){
-  const e=env();driveConfig();if(!code)throw Object.assign(new Error('Missing Google Drive OAuth code'),{code:'DRIVE_OAUTH_EXCHANGE',status:400});
-  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:e.DRIVE_CLIENT_ID||e.YOUTUBE_CLIENT_ID,client_secret:e.DRIVE_CLIENT_SECRET||e.YOUTUBE_CLIENT_SECRET,redirect_uri:e.DRIVE_REDIRECT_URI||`${e.APP_BASE_URL}/api/drive/callback`,grant_type:'authorization_code'})});
+  const e=driveConfig();if(!code)throw Object.assign(new Error('Missing Google Drive OAuth code'),{code:'DRIVE_OAUTH_EXCHANGE',status:400});
+  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({code,client_id:e.DRIVE_CLIENT_ID,client_secret:e.DRIVE_CLIENT_SECRET,redirect_uri:e.DRIVE_REDIRECT_URI,grant_type:'authorization_code'})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok)throw Object.assign(new Error(data?.error_description||'Google Drive OAuth exchange failed'),{code:data?.error||'DRIVE_OAUTH_EXCHANGE',status:r.status});
   if(!data.access_token)throw Object.assign(new Error('Google Drive OAuth did not return an access token'),{code:'DRIVE_OAUTH_EXCHANGE',status:502});
   return data;
 }
 export async function refreshDriveAccessToken(refreshToken){
-  const e=env();driveConfig();
-  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:e.DRIVE_CLIENT_ID||e.YOUTUBE_CLIENT_ID,client_secret:e.DRIVE_CLIENT_SECRET||e.YOUTUBE_CLIENT_SECRET,refresh_token:refreshToken,grant_type:'refresh_token'})});
+  const e=driveConfig();
+  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:e.DRIVE_CLIENT_ID,client_secret:e.DRIVE_CLIENT_SECRET,refresh_token:refreshToken,grant_type:'refresh_token'})});
   const data=await r.json().catch(()=>({}));
   if(!r.ok||!data.access_token)throw Object.assign(new Error(data?.error_description||'Google Drive token refresh failed'),{code:data?.error||'DRIVE_TOKEN_REFRESH',status:r.status});
   return data;
