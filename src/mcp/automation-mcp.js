@@ -47,7 +47,7 @@ async function oauthGoogleCallback(req,res,u){
   if(u.searchParams.get('error'))return html(res,401,`<!doctype html><html><body><h2>Authorization failed</h2><p>${esc(u.searchParams.get('error_description')||u.searchParams.get('error'))}</p></body></html>`);
   if(!code)return html(res,400,'<!doctype html><html><body><h2>Authorization failed</h2><p>No authorization code returned.</p></body></html>');
   const supabaseUrl=process.env.SUPABASE_URL,anon=process.env.SUPABASE_ANON_KEY;
-  const r=await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`,{method:'POST',headers:{apikey:anon,'content-type':'application/json'},body:new URLSearchParams({auth_code:code,code_verifier:flow.code_verifier})});
+  const r=await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`,{method:'POST',headers:{apikey:anon,'content-type':'application/json'},body:JSON.stringify({auth_code:code,code_verifier:flow.code_verifier})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.access_token)return html(res,401,`<!doctype html><html><body><h2>Authorization failed</h2><p>${esc(d.error_description||d.msg||'Google authentication could not be completed.')}</p></body></html>`);
   googleFlows.delete(flowId);
