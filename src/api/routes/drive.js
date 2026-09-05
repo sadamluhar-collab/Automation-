@@ -27,9 +27,10 @@ export async function callback(req,res){
     if(!req.query.code)throw Object.assign(new Error('Missing Google Drive OAuth code'),{code:'DRIVE_OAUTH_EXCHANGE',status:400});
     state=verifyDriveState(req.query.state);
     const token=await exchangeDriveCode(req.query.code);
-    const users=await query('users',{params:`?id=eq.${encodeURIComponent(state.sub)}&select=id,tenant_id,email&limit=1`});
+    // public.users has no email column; email is optional in drive_connections.
+    const users=await query('users',{params:`?id=eq.${encodeURIComponent(state.sub)}&select=id,tenant_id&limit=1`});
     const user=users?.[0];if(!user)throw Object.assign(new Error('Workspace user not found'),{code:'AUTH',status:401});
-    const body={user_id:user.id,tenant_id:user.tenant_id,email:user.email||null,access_token:encrypt(token.access_token),refresh_token:token.refresh_token?encrypt(token.refresh_token):null,expires_at:new Date(Date.now()+Number(token.expires_in||3600)*1000).toISOString(),scope:token.scope||'https://www.googleapis.com/auth/drive.file',token_type:token.token_type||'Bearer',status:'active',updated_at:new Date().toISOString()};
+    const body={user_id:user.id,tenant_id:user.tenant_id,access_token:encrypt(token.access_token),refresh_token:token.refresh_token?encrypt(token.refresh_token):null,expires_at:new Date(Date.now()+Number(token.expires_in||3600)*1000).toISOString(),scope:token.scope||'https://www.googleapis.com/auth/drive.file',token_type:token.token_type||'Bearer',status:'active',updated_at:new Date().toISOString()};
     const existing=await query('drive_connections',{params:`?user_id=eq.${encodeURIComponent(user.id)}&select=id&limit=1`});
     if(existing?.[0]?.id)await query('drive_connections',{method:'PATCH',params:`?id=eq.${encodeURIComponent(existing[0].id)}&select=id`,headers:{Prefer:'return=representation'},body});
     else await query('drive_connections',{method:'POST',params:'?select=id',headers:{Prefer:'return=representation'},body});
