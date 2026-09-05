@@ -1,7 +1,6 @@
 import {projects} from '../../database/repositories/project.repository.js';
 import {projectStrategy} from '../../database/repositories/project-strategy.repository.js';
-import {pipeline} from '../../database/repositories/pipeline.repository.js';
-import {enqueue} from '../../queue/queue.service.js';
+import {startDirectShort,getDirectRun} from '../../pipeline/direct-run.service.js';
 
 const send=(res,status,data)=>{res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.setHeader('cache-control','no-store');res.end(JSON.stringify(data))};
 
@@ -50,29 +49,25 @@ export async function remove(req,res){
   }catch(error){
     const status=error.message==='Project not found'?404:error.message==='Project has active jobs'?409:400;
     console.error('projects.remove failed',error);
-    send(res,status,{success:false,error:{code:status===404?'NOT_FOUND':status===409?'ACTIVE_JOBS':'DELETE_FAILED',message:error.message}});
+    send(res,status,{success:false,error:{code:status===404?'ACTIVE_JOBS':status===409?'ACTIVE_JOBS':'DELETE_FAILED',message:error.message}});
   }
 }
 
 export async function run(req,res){
   try{
-    const id=String(req.params.id||'').trim();
-    const project=await projects.get(id,req.user.id);
-    if(!project)return send(res,404,{success:false,error:{code:'NOT_FOUND',message:'Project not found'}});
-    const strategy=await projectStrategy.get({userId:req.user.id,projectId:project.id});
-    const pipelineRun=await pipeline.createRun({userId:req.user.id,projectId:project.id,state:{}});
-    try{
-      const job=await enqueue({user_id:req.user.id,channel_id:project.channel_id,project_id:project.id,job_type:'pipeline',current_step:'research',input:{project_id:project.id,pipeline_run_id:pipelineRun.id,config:project.config||{},strategy:strategy||null},priority:4,max_retries:3});
-      await projects.update({userId:req.user.id,id,status:'running',config:project.config});
-      send(res,202,{success:true,data:{project_id:project.id,pipeline_run_id:pipelineRun.id,job}});
-    }catch(error){
-      await pipeline.updateRun(pipelineRun.id,{status:'failed',current_step:'research',state:{error:error.message}}).catch(()=>{});
-      throw error;
-    }
+    const result=await startDirectShort({userId:req.user.id,projectId:req.params.id,prompt:req.body?.prompt,idempotencyKey:req.body?.idempotency_key,source:'project-run'});
+    return send(res,202,{success:true,status:'queued',data:{job_id:result.job.id,pipeline_run_id:result.pipeline_run_id,project_id:result.project_id,reused:result.reused}});
   }catch(error){
-    console.error('projects.run failed',error);
-    send(res,500,{success:false,error:{code:'RUN_FAILED',message:'Project run could not be started'}});
+    console.error('projects.run failed',{code:error.code||'RUN_FAILED',message:error.message});
+    return send(res,error.status||500,{success:false,error:{code:error.code||'RUN_FAILED',message:error.status?error.message:'Project run could not be started'}});
   }
+}
+
+export async function runStatus(req,res){
+  try{
+    const run=await getDirectRun({userId:req.user.id,runId:req.params.runId});
+    return send(res,200,{success:true,data:{id:run.id,project_id:run.project_id,status:run.status,current_step:run.current_step,progress:run.progress,steps:run.steps,created_at:run.created_at,updated_at:run.updated_at,completed_at:run.completed_at}});
+  }catch(error){return send(res,error.status||500,{success:false,error:{code:error.code||'RUN_STATUS_FAILED',message:error.status?error.message:'Run status unavailable'}})}
 }
 
 export async function get(req,res){
