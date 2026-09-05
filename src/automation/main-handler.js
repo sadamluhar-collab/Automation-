@@ -1,5 +1,6 @@
 import {startDirectShort, makeRunIdempotencyKey} from '../pipeline/direct-run.service.js';
 import {schedules} from '../database/repositories/schedule.repository.js';
+import {projects} from '../database/repositories/project.repository.js';
 
 const clean = value => String(value ?? '').trim();
 const DEFAULT_PROMPT = 'Create a unique 60-second YouTube Short';
@@ -20,6 +21,10 @@ export async function dispatchWork({userId, projectId, prompt, scheduleAt, idemp
   if (!userId) throw error('AUTH_REQUIRED', 'Authentication is required', 401);
   if (!projectId) throw error('PROJECT_NOT_FOUND', 'project_id is required', 400);
 
+  const project = await projects.get(projectId, userId);
+  if (!project) throw error('PROJECT_NOT_FOUND', 'Project not found', 404);
+  if (!project.channel_id) throw error('CHANNEL_NOT_CONNECTED', 'Project has no connected YouTube channel', 409);
+
   const normalizedPrompt = clean(prompt) || DEFAULT_PROMPT;
   const scheduled = parseSchedule(scheduleAt);
   const key = makeRunIdempotencyKey({projectId, prompt: normalizedPrompt, idempotencyKey});
@@ -30,6 +35,7 @@ export async function dispatchWork({userId, projectId, prompt, scheduleAt, idemp
 
   const schedule = await schedules.create({
     userId,
+    channelId: project.channel_id,
     projectId,
     publishAt: scheduled.toISOString(),
     timezone: 'UTC',
