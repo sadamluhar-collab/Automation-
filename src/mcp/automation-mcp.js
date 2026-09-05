@@ -36,21 +36,21 @@ async function oauthAuthorize(req,res,u){
   if(!client)clients.set(clientId,{redirect_uris:[redirect],client_name:'ChatGPT MCP'});
   const flow=token(),v=verifier();googleFlows.set(flow,{client_id:clientId,redirect_uri:redirect,chatgpt_challenge:p.get('code_challenge'),code_verifier:v,created_at:Date.now()});
   setTimeout(()=>googleFlows.delete(flow),10*60*1000);
-  const callback=`${base()}/oauth/google/callback`;
-  const q=new URLSearchParams({provider:'google',redirect_to:callback,code_challenge:challenge(v),code_challenge_method:'S256',state:flow});
+  const callback=`${base()}/oauth/google/callback?flow=${encodeURIComponent(flow)}`;
+  const q=new URLSearchParams({provider:'google',redirect_to:callback,code_challenge:challenge(v),code_challenge_method:'S256'});
   return res.writeHead(302,{location:`${supabaseUrl}/auth/v1/authorize?${q}`}).end();
 }
 
 async function oauthGoogleCallback(req,res,u){
-  const state=u.searchParams.get('state'),code=u.searchParams.get('code'),flow=googleFlows.get(state);
-  if(!flow||Date.now()-flow.created_at>10*60*1000)return html(res,400,'<!doctype html><html><body><h2>Authorization failed</h2><p>Invalid or expired OAuth state.</p></body></html>');
+  const flowId=u.searchParams.get('flow'),code=u.searchParams.get('code'),flow=googleFlows.get(flowId);
+  if(!flow||Date.now()-flow.created_at>10*60*1000)return html(res,400,'<!doctype html><html><body><h2>Authorization failed</h2><p>Invalid or expired OAuth flow.</p></body></html>');
   if(u.searchParams.get('error'))return html(res,401,`<!doctype html><html><body><h2>Authorization failed</h2><p>${esc(u.searchParams.get('error_description')||u.searchParams.get('error'))}</p></body></html>`);
   if(!code)return html(res,400,'<!doctype html><html><body><h2>Authorization failed</h2><p>No authorization code returned.</p></body></html>');
   const supabaseUrl=process.env.SUPABASE_URL,anon=process.env.SUPABASE_ANON_KEY;
   const r=await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`,{method:'POST',headers:{apikey:anon,'content-type':'application/json'},body:new URLSearchParams({auth_code:code,code_verifier:flow.code_verifier})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok||!d.access_token)return html(res,401,`<!doctype html><html><body><h2>Authorization failed</h2><p>${esc(d.error_description||d.msg||'Google authentication could not be completed.')}</p></body></html>`);
-  googleFlows.delete(state);
+  googleFlows.delete(flowId);
   const outCode=token();codes.set(outCode,{client_id:flow.client_id,redirect_uri:flow.redirect_uri,challenge:flow.chatgpt_challenge,access_token:d.access_token,refresh_token:d.refresh_token,expires_in:d.expires_in||3600,expires_at:Date.now()+10*60*1000});
   setTimeout(()=>codes.delete(outCode),10*60*1000);
   const out=new URL(flow.redirect_uri);out.searchParams.set('code',outCode);return res.writeHead(302,{location:out.toString()}).end();
@@ -91,4 +91,4 @@ export async function handleMcp(req,res){
   }catch(e){return send(res,e.status||500,{jsonrpc:'2.0',id:null,error:{code:-32000,message:e.message||'Internal error'}})}
 }
 
-async function tool(req,n,a){switch(n){case'list_channels':return api(req,'/api/channels');case'list_projects':return api(req,'/api/projects');case'start_project':return api(req,`/api/projects/${encodeURIComponent(a.project_id)}/run`,'POST',{});case'get_job_status':return api(req,`/api/jobs/${encodeURIComponent(a.job_id)}`);case'get_pipeline_status':return api(req,`/api/pipeline/runs/${encodeURIComponent(a.pipeline_run_id)}`);case'retry_job':return api(req,`/api/jobs/${encodeURIComponent(a.job_id)}`,'POST',{command:'RETRY'});case'create_schedule':return api(req,'/api/schedules','POST',a);case'channel_analytics':return api(req,`/api/analytics/channels${a.channel_id?`?channel_id=${encodeURIComponent(a.channel_id)}`:''}`);case'list_memory':return api(req,'/api/memory');default:throw Object.assign(new Error('Unknown tool'),{status:400})}}
+async function tool(req,n,a){switch(n){case'list_channels':return api(req,'/api/channels');case'list_projects':return api(req,'/api/projects');case'start_project':return api(req,`/api/projects/${encodeURIComponent(a.project_id)}/run`,'POST',{});case'get_job_status':return api(req,`/api/jobs/${encodeURIComponent(a.job_id)}`);case'get_pipeline_status':return api(req,`/api/pipeline/runs/${encodeURIComponent(a.pipeline_run_id}`);case'retry_job':return api(req,`/api/jobs/${encodeURIComponent(a.job_id)}`,'POST',{command:'RETRY'});case'create_schedule':return api(req,'/api/schedules','POST',a);case'channel_analytics':return api(req,`/api/analytics/channels${a.channel_id?`?channel_id=${encodeURIComponent(a.channel_id)}`:''}`);case'list_memory':return api(req,'/api/memory');default:throw Object.assign(new Error('Unknown tool'),{status:400})}}
