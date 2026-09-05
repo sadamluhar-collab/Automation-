@@ -29,7 +29,7 @@ export function verifyState(state){
 export function authorizationUrl(state){
   const e=env();
   if(!e.YOUTUBE_CLIENT_ID||!e.YOUTUBE_CLIENT_SECRET||!e.YOUTUBE_REDIRECT_URI)throw new Error('YouTube OAuth configuration is incomplete');
-  const q=new URLSearchParams({client_id:e.YOUTUBE_CLIENT_ID,redirect_uri:e.YOUTUBE_REDIRECT_URI,response_type:'code',scope,access_type:'offline',prompt:'consent',include_granted_scopes:'true',state});
+  const q=new URLSearchParams({client_id:e.YOUTUBE_CLIENT_ID,client_secret:e.YOUTUBE_CLIENT_SECRET,redirect_uri:e.YOUTUBE_REDIRECT_URI,response_type:'code',scope,access_type:'offline',prompt:'consent',include_granted_scopes:'true',state});
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
 }
 
